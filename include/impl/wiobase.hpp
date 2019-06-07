@@ -35,6 +35,12 @@
 
 namespace wdedup {
 
+/// Buffer size of the read buffer, usually equals to a page size or
+/// a sector size so that I/O transmissions could be optimized.
+/// TODO(haoran.luo): try to fetch the page size or sector size using
+/// CMake's configure_file() headers.
+static const size_t bufsiz = 4096;
+
 /**
  * @brief Defines the sequential-scan file base.
  *
@@ -58,12 +64,6 @@ private:
 
 	/// The file descriptor that is open for reading.
 	int fd;
-
-	/// Buffer size of the read buffer, usually equals to a page size or
-	/// a sector size so that I/O transmissions could be optimized.
-	/// TODO(haoran.luo): try to fetch the page size or sector size using
-	/// CMake's configure_file() headers.
-	static const size_t bufsiz = 4096;
 
 	/// The buffer storing the fetched content.
 	mutable char readbuf[bufsiz];
@@ -123,6 +123,32 @@ struct AppendFileLog : public AppendFileBase {
 private:
 	/// The synchronization buffer that holds the next content to synchronize.
 	std::vector<char> writebuf;
+};
+
+/**
+ * @brief Defines the buffer output file.
+ *
+ * The implementation is used to reduce the overhead of writing files, in the unit
+ * of reduced syscall.
+ */
+struct AppendFileBuffer : public AppendFileBase {
+	/// @brief Open or create a log file under the given path.
+	AppendFileBuffer(const char*, std::function<void(int)>) throw (wdedup::Error);
+
+	/// Close the file when the object get destructed.
+	virtual ~AppendFileBuffer() noexcept {}
+
+	// Override the pure virtual methods.
+	virtual void write(const char*, size_t) throw(wdedup::Error) override;
+
+	/// No synchronization for such file, and no delegating as it is the base.
+	virtual void sync() throw(wdedup::Error) override;
+private:
+	/// The buffer buffering the content to write.
+	char writebuf[bufsiz];
+
+	/// The length of data in the write buffer.
+	size_t writelen;
 };
 
 } // namespace wdedup

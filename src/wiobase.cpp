@@ -64,7 +64,7 @@ void SequentialFileBase::read(char* buf, size_t size) throw (wdedup::Error) {
 		// Fill the file with remainder content of buffer.
 		size_t currentRead = std::min(readlen - readoff, size);
 		if(currentRead > 0) memcpy(buf, &readbuf[readoff], currentRead);
-		readoff += currentRead; size -= currentRead;
+		readoff += currentRead; size -= currentRead; buf += currentRead;
 	}
 }
 
@@ -83,7 +83,7 @@ AppendFileBase::AppendFileBase(
 
 	// Attempt to open the append-only file first. Exception will
 	// be thrown if an invalid file descriptor is expected.
-	fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+	fd = open(path, O_APPEND | O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
 	if(fd == -1) report(errno);
 }
 
@@ -110,6 +110,33 @@ void AppendFileLog::sync() throw (wdedup::Error) {
 	AppendFileBase::write(writebuf.data(), writebuf.size());
 	{ std::vector<char> empty; writebuf.swap(empty); }
 	if(fsync(fd) == -1) report(errno);
+}
+
+AppendFileBuffer::AppendFileBuffer(
+	const char* path, std::function<void(int)> report
+) throw (wdedup::Error): AppendFileBase(path, report), writelen(0) {
+}
+
+void AppendFileBuffer::write(const char* buf, size_t size) throw (wdedup::Error) {
+	while(size > 0) {
+		// Flushes the previous buffer.
+		if(writelen == bufsiz) {
+			AppendFileBase::write(writebuf, bufsiz);
+			writelen = 0;
+		}
+
+		// Fill content of curent data to buffer.
+		size_t currentsiz = std::min(bufsiz - writelen, size);
+		memcpy(&writebuf[writelen], buf, currentsiz);
+		buf += currentsiz; size -= currentsiz; writelen += currentsiz;
+	}
+}
+
+void AppendFileBuffer::sync() throw (wdedup::Error) {
+	if(writelen > 0) {
+		AppendFileBase::write(writebuf, writelen);
+		writelen = 0;
+	}
 }
 
 } // namespace wdedup
