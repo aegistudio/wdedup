@@ -44,7 +44,7 @@ namespace wdedup {
  */
 struct Error {
 	/// @brief The errno for this error (if any).
-	int errno;
+	int eno;
 
 	/// @brief The file causing such I/O error. Usually full
 	/// path of the file is required.
@@ -52,6 +52,10 @@ struct Error {
 
 	/// @brief The role of the file while processing.
 	std::string role;
+
+	/// Constructor for the error struct.
+	Error(int eno, std::string path, std::string role) noexcept: 
+		eno(eno), path(std::move(path)), role(std::move(role))  {}
 };
 
 } // namespace wdedup

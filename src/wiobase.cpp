@@ -63,7 +63,7 @@ void SequentialFileBase::read(char* buf, size_t size) throw (wdedup::Error) {
 
 		// Fill the file with remainder content of buffer.
 		size_t currentRead = std::min(readlen - readoff, size);
-		if(currentRead > 0) memcpy(buf, readbuf, currentRead);
+		if(currentRead > 0) memcpy(buf, &readbuf[readoff], currentRead);
 		readoff += currentRead; size -= currentRead;
 	}
 }

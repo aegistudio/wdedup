@@ -61,7 +61,7 @@ struct SequentialFile {
 	/// orchestrating "Impl"s.
 	struct Impl {
 		/// Virtual deconstructor for pure virtual classes.
-		virtual ~Impl() noexcept = 0;
+		virtual ~Impl() noexcept {}
 
 		/// Read chunk from the file.
 		/// @throw wdedup::Error when premature EOF is 
@@ -105,7 +105,7 @@ private:
 template<typename dataType> inline SequentialFile& operator>>(
 	SequentialFile& seq, dataType& d
 ) throw (wdedup::Error) {
-	seq.read(&d, sizeof(d));
+	seq.read((char*)&d, sizeof(d));
 	return seq;
 }
 
@@ -118,7 +118,7 @@ inline SequentialFile& operator>>(
 	// Read until '\0' is expected.
 	while(true) {
 		char c;
-		seq.read(&c, 1);
+		seq.read((char*)&c, 1);
 		if(c) strbld << c;
 		else break;
 	}
@@ -144,7 +144,7 @@ struct AppendFile {
 	/// of writing to the sequential file.
 	struct Impl {
 		/// Virtual deconstructor for pure virtual classes.
-		virtual ~Impl() noexcept = 0;
+		virtual ~Impl() noexcept {}
 
 		/// Writing chunk from the file.
 		/// @throw wdedup::Error when I/O error occurs.
@@ -191,7 +191,7 @@ private:
 template<typename dataType> inline AppendFile& operator<<(
 	AppendFile& app, const dataType& d
 ) throw (wdedup::Error) {
-	app.write(&d, sizeof(d));
+	app.write((char*)&d, sizeof(d));
 	return app;
 }
 
@@ -199,7 +199,7 @@ template<typename dataType> inline AppendFile& operator<<(
 inline AppendFile& operator<<(
 	AppendFile& app, const std::string& str
 ) throw (wdedup::Error) {
-	app.write(str.c_str(), str.size());
+	app.write((char*)str.c_str(), str.size());
 	app.write("\0", 1);
 	return app;
 }
