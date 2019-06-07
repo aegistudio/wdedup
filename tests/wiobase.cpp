@@ -65,7 +65,7 @@ AppendFile::AppendFile(std::string path, std::string role, bool log)
  */
 TEST(wio, readwrite) {
 	// Repetition time for writing file.
-	static const size_t times = 100000;
+	static const size_t times = 1000000;
 	static const char* filename = "wio.readwrite.temp";
 	remove(filename);	// Make sure absence of file.
 
@@ -89,6 +89,6 @@ TEST(wio, readwrite) {
 		{ float number; 
 		for(float i = 0.0; i < times; i += 1.0) {
 			sb >> number; EXPECT_EQ(number, i); } }
-		assert(sb.eof()); // Make sure no more content is written.
+		EXPECT_TRUE(sb.eof()); // Make sure no more content is written.
 	}
 }
