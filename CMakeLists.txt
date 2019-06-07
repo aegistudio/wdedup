@@ -27,18 +27,46 @@
 cmake_minimum_required(VERSION 3.5)
 project(wdedup)
 
+# Configurable options for building wdedup.
+option(WDEDUP_RUNTESTS "Build and run unit tests (GoogleTest required)." ON)
+
 # Make sure that at least C++11 is used to avoid problems.
 set(CMAKE_CXX_STANDARD 11)
 
 # Makes it impossible to be built on platform other than Linux
 # currently, as we relies on features like mmap(), posix_fadvise().
 if(NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Linux")
-message(SEND_ERROR "wdedup can only be built on Linux currently.")
+  message(SEND_ERROR "wdedup can only be built on Linux currently.")
 endif()
 
 # Include directory for wdedup.
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-# XXX(haoran.luo): this is a build stub for testing wio sources.
-# Will be removed when the wdedup main program has been done.
-add_library(wdedup_io "${CMAKE_CURRENT_SOURCE_DIR}/src/wiobase.cpp")
+# Convenient path for specifying some source file as part of the building.
+set(WDEDUP_SRCPATH   "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set(WDEDUP_TESTSPATH "${CMAKE_CURRENT_SOURCE_DIR}/tests")
+
+# Configure and use GoogleTest as unit test driver.
+if(WDEDUP_RUNTESTS)
+  # Enable CTest provided by CMake.
+  include(CTest)
+  enable_testing()
+
+  # Find and import GoogleTest (GTest::Main, GTest::GTest).
+  find_package(GTest REQUIRED)
+  if(NOT ${GTEST_FOUND})
+    message(SEND_ERROR "WDEDUP_RUNTEST enabled with GoogleTest not found.")
+  endif()
+
+  # Configure macros for conveniently defining some test cases.
+  macro(wdedup_testcase WDEDUP_TESTNAME WDEDUP_SRCLIST)
+    add_executable("${WDEDUP_TESTNAME}.test"
+        "${WDEDUP_TESTSPATH}/${WDEDUP_TESTNAME}.cpp"
+        ${WDEDUP_SRCLIST})
+    target_link_libraries("${WDEDUP_TESTNAME}.test" GTest::GTest GTest::Main)
+    add_test("wdedup.${WDEDUP_TESTNAME}" "${WDEDUP_TESTNAME}.test")
+  endmacro(wdedup_testcase)
+
+  # Define test cases just inside the tests directory.
+  add_subdirectory(${WDEDUP_TESTSPATH})
+endif() # WDEDUP_RUNTEST
