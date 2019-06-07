@@ -7,7 +7,7 @@ functions, like finding the first N-words, etc.
 
 ## Basic Approaches
 
-Word deduplication for massive file problem can be solved via
+Word deduplication for large file problem can be solved via
 divide-and-conquer approaches: the massive file is divided into
 multiple disjoint segments, which forms the original file after
 concatenated. A enumeration profile is generated for each 

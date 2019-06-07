@@ -27,5 +27,18 @@
 cmake_minimum_required(VERSION 3.5)
 project(wdedup)
 
+# Make sure that at least C++11 is used to avoid problems.
+set(CMAKE_CXX_STANDARD 11)
+
+# Makes it impossible to be built on platform other than Linux
+# currently, as we relies on features like mmap(), posix_fadvise().
+if(NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Linux")
+message(SEND_ERROR "wdedup can only be built on Linux currently.")
+endif()
+
 # Include directory for wdedup.
-include_directories("${CMAKE_CURRENT_SOURCE_DIRECTORY}/include")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+# XXX(haoran.luo): this is a build stub for testing wio sources.
+# Will be removed when the wdedup main program has been done.
+add_library(wdedup_io "${CMAKE_CURRENT_SOURCE_DIR}/src/wiobase.cpp")
