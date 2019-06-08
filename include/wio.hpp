@@ -56,9 +56,23 @@ struct FileMode {
 	/// Log file will ensure that data between wdedup::sync will
 	/// either be missing or written out as a integrity part.
 	/// (wdedup::AppendFile will use this flag, however the
-	///  wdedup::SequentialFIle will ignore because there's no
+	///  wdedup::SequentialFile will ignore because there's no
 	///  difference between a non-log and a log file).
 	bool log;
+
+	/// Perform seekset before reading the specified file. Setting 
+	/// this variable to 0 will force to read from the start.
+	/// (wdedup::SequentialFile will use this flag, however the
+	///  wdedup::AppendFile will ignore because they always 
+	///  write to the end of the file).
+	fileoff_t seekset;
+
+	/// Default constructor of the file mode.
+	FileMode() noexcept: log(false), seekset(0) {}
+
+	/// Copy constructor of the file mode.
+	FileMode(const FileMode& c) noexcept: log(c.log), 
+		seekset(c.seekset) {}
 };
 
 /**
@@ -86,6 +100,9 @@ struct SequentialFile final {
 
 		/// Judege whether it is EOF currently.
 		virtual bool eof() const noexcept = 0;
+
+		/// Telling current position of the sequential file.
+		virtual fileoff_t tell() const noexcept = 0;
 	};
 
 	/**
@@ -111,8 +128,11 @@ struct SequentialFile final {
 		pimpl->read(buf, siz);
 	}
 
-	/// Judge whether the sequential file is EOF.
+	/// Delegates the eof interface.
 	inline bool eof() const noexcept { return pimpl->eof(); }
+
+	/// Delegates the tell interface.
+	inline fileoff_t tell() const noexcept { return pimpl->tell(); }
 private:
 	/// Pointer to specific implementation of sequential file.
 	std::unique_ptr<SequentialFile::Impl> pimpl;
@@ -170,6 +190,10 @@ struct AppendFile final {
 		/// Flush current cached chunk of file.
 		/// @throw wdedup::Error when I/O error occurs.
 		virtual void sync() throw (wdedup::Error) = 0;
+
+		/// Return the currently estimated file size (the file
+		/// size if all data has been written to the file).
+		virtual fileoff_t tell() const noexcept = 0;
 	};
 
 	/**
@@ -197,6 +221,9 @@ struct AppendFile final {
 	inline void write(const char* buf, size_t siz) throw(wdedup::Error) {
 		pimpl->write(buf, siz);
 	}
+
+	/// Delegates the size interface.
+	inline fileoff_t tell() const noexcept { return pimpl->tell(); }
 
 	/// Delegates the sync interface.
 	inline void sync() throw(wdedup::Error) { pimpl->sync(); }

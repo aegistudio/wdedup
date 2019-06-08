@@ -49,7 +49,7 @@ SequentialFile::SequentialFile(std::string path, std::string role,
 
 	pimpl = std::unique_ptr<SequentialFile::Impl>(
 		new SequentialFileBase(path.c_str(), 
-		getReportFunction(path, role)));
+		getReportFunction(path, role), 0));
 }
 
 // Mocked up append-only file driver for testing.

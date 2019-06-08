@@ -44,7 +44,7 @@ SequentialFile::SequentialFile(std::string path, std::string role,
 	// Initialize the basic append file.
 	pimpl = std::unique_ptr<SequentialFile::Impl>(
 		new SequentialFileBase(path.c_str(), 
-		getReportFunction(path, role)));
+		getReportFunction(path, role), mode.seekset));
 }
 
 AppendFile::AppendFile(std::string path, std::string role, 

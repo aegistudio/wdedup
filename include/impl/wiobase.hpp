@@ -50,7 +50,8 @@ static const size_t bufsiz = 4096;
  */
 struct SequentialFileBase : public SequentialFile::Impl {
 	/// @brief Open a file under the given path.
-	SequentialFileBase(const char*, std::function<void(int)>) throw (wdedup::Error);
+	SequentialFileBase(const char*, std::function<void(int)>, 
+		fileoff_t) throw (wdedup::Error);
 
 	/// Close the file when the object get destructed.
 	virtual ~SequentialFileBase() noexcept;
@@ -58,13 +59,14 @@ struct SequentialFileBase : public SequentialFile::Impl {
 	// Override the pure virtual methods.
 	virtual void read(char*, size_t) throw(wdedup::Error) override;
 	virtual bool eof() const noexcept override;
-private:
+	virtual fileoff_t tell() const noexcept override;
+
 	/// Reference to the error report function.
-	std::function<void(int)> report;
+	const std::function<void(int)> report;
 
 	/// The file descriptor that is open for reading.
-	int fd;
-
+	const int fd;
+private:
 	/// The buffer storing the fetched content.
 	mutable char readbuf[bufsiz];
 
@@ -73,6 +75,9 @@ private:
 
 	/// The available data length in the read buffer.
 	mutable size_t readlen;
+
+	/// The current position of the pointer in the file.
+	mutable fileoff_t filetell;
 };
 
 
@@ -82,7 +87,11 @@ private:
  * The implementation handles the creation and basic operations for writing
  * such file. Just like the SequentialFileBase counter part.
  */
-struct AppendFileBase : public AppendFile::Impl {
+class AppendFileBase : public AppendFile::Impl {
+protected:
+	/// The current file tell of the output file.
+	fileoff_t filetell;
+public:
 	/// @brief Open or create a file under the given path.
 	AppendFileBase(const char*, std::function<void(int)>) throw (wdedup::Error);
 
@@ -94,12 +103,15 @@ struct AppendFileBase : public AppendFile::Impl {
 
 	/// No synchronization for such file, and no delegating as it is the base.
 	virtual void sync() throw(wdedup::Error) override {}
-protected:
+
+	/// The telling method is waiting for its children to implement.
+	virtual fileoff_t tell() const noexcept { return filetell; }
+
 	/// Reference to the error report function.
-	std::function<void(int)> report;
+	const std::function<void(int)> report;
 
 	/// The file descriptor that is open for writing.
-	int fd;
+	const int fd;
 };
 
 /**

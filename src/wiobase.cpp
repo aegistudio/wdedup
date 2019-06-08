@@ -28,6 +28,7 @@
  */
 #include "impl/wiobase.hpp"
 #include <cstring>
+#include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -35,16 +36,21 @@
 namespace wdedup {
 
 SequentialFileBase::SequentialFileBase(
-	const char* path, std::function<void(int)> report
-) throw (wdedup::Error): report(report), fd(-1), readoff(0), readlen(0) {
+	const char* path, std::function<void(int)> report, fileoff_t seekset
+) throw (wdedup::Error): report(report), 
+	fd(open(path, O_RDONLY)), readoff(0), readlen(0), filetell(0) {
 	
 	// Attempt to open the sequential file first. Exception will
 	// be thrown if an invalid file descriptor is expected.
-	fd = open(path, O_RDONLY);
 	if(fd == -1) report(errno);
 
 	// Use posix_fadvise() to make it more friendly for sequential read.
 	if(posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL) < 0) report(errno);
+
+	// Learning about the current location of the file.
+	off64_t offset = lseek64(fd, seekset, SEEK_SET);
+	if(offset == (off64_t)(-1)) report(errno);
+	filetell = offset;
 }
 
 SequentialFileBase::~SequentialFileBase() noexcept {
@@ -58,7 +64,8 @@ void SequentialFileBase::read(char* buf, size_t size) throw (wdedup::Error) {
 			ssize_t nextreadlen = ::read(fd, readbuf, bufsiz);
 			if(nextreadlen == -1) report(errno);
 			else if(nextreadlen == 0) report(EIO); // premature EOF.
-			readoff = 0; readlen = (size_t)nextreadlen;
+			readoff = 0; filetell += readlen;
+			readlen = (size_t)nextreadlen;
 		}
 
 		// Fill the file with remainder content of buffer.
@@ -74,17 +81,25 @@ bool SequentialFileBase::eof() const noexcept {
 	// As error will be detected in proceeding read, ignore.
 	if(nextreadlen == -1) return false;
 	else if(nextreadlen == 0) return true;
-	readoff = 0; readlen = (size_t)nextreadlen;
+	readoff = 0; filetell += readlen; readlen = (size_t)nextreadlen;
+}
+
+fileoff_t SequentialFileBase::tell() const noexcept {
+	return filetell + readoff;
 }
 
 AppendFileBase::AppendFileBase(
 	const char* path, std::function<void(int)> report
-) throw (wdedup::Error): report(report), fd(-1) {
-
+) throw (wdedup::Error): report(report), 
+	fd(open(path, O_APPEND | O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR)) {
 	// Attempt to open the append-only file first. Exception will
 	// be thrown if an invalid file descriptor is expected.
-	fd = open(path, O_APPEND | O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
 	if(fd == -1) report(errno);
+
+	// Learning about the current location of the file.
+	off64_t offset = lseek64(fd, 0, SEEK_CUR);
+	if(offset == (off64_t)(-1)) report(errno);
+	filetell = offset;
 }
 
 AppendFileBase::~AppendFileBase() noexcept {
@@ -107,9 +122,14 @@ void AppendFileLog::write(const char* buf, size_t size) throw (wdedup::Error) {
 }
 
 void AppendFileLog::sync() throw (wdedup::Error) {
-	AppendFileBase::write(writebuf.data(), writebuf.size());
+	size_t writebufsiz = writebuf.size();
+	AppendFileBase::write(writebuf.data(), writebufsiz);
 	{ std::vector<char> empty; writebuf.swap(empty); }
 	if(fsync(fd) == -1) report(errno);
+
+	// We use actual size here, as logs without synchronization will never be
+	// written out as is assumed.
+	filetell += writebufsiz;
 }
 
 AppendFileBuffer::AppendFileBuffer(
@@ -130,6 +150,10 @@ void AppendFileBuffer::write(const char* buf, size_t size) throw (wdedup::Error)
 		memcpy(&writebuf[writelen], buf, currentsiz);
 		buf += currentsiz; size -= currentsiz; writelen += currentsiz;
 	}
+
+	// We use estimated size here, as we would always like to know about the 
+	// final size after persisting all these data.
+	filetell += size;
 }
 
 void AppendFileBuffer::sync() throw (wdedup::Error) {
