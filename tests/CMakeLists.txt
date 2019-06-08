@@ -19,8 +19,7 @@
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR 
 # IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN 
 # THE SOFTWARE.
-#
-# This tool is designed for deduplicating words in massive file,
-# and find the first or list of non-duplicating ones. The output
-# words will be ordered by their first occurence in the file.
-wdedup_testcase(wiobase "${WDEDUP_SRCPATH}/wiobase.cpp")
+wdedup_testcase(wiobase    "${WDEDUP_SRCPATH}/wiobase.cpp")
+wdedup_testcase(wpflsimple "${WDEDUP_SRCPATH}/wpflsimple.cpp"
+                           "${WDEDUP_SRCPATH}/wiobase.cpp"
+                           "${WDEDUP_SRCPATH}/wio.cpp")

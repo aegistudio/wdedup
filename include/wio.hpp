@@ -54,7 +54,7 @@ namespace wdedup {
  * special flags are configured for such files, so that OS
  * can load pages into file buffers in a desired way.
  */
-struct SequentialFile {
+struct SequentialFile final {
 	/// Interface aids hiding implementaiton specific details
 	/// of reading from the sequential file. However, this class 
 	/// must provides a libray/application level interface for 
@@ -139,7 +139,7 @@ inline SequentialFile& operator>>(
  * to the file. This prevents confusion about distinguishing
  * corruption from semi-persisted log.
  */
-struct AppendFile {
+struct AppendFile final {
 	/// Interface aids hiding implementation specific details
 	/// of writing to the sequential file.
 	struct Impl {

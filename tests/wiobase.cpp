@@ -31,6 +31,8 @@
 #include "impl/wiobase.hpp"
 #include "wtypes.hpp"
 
+// We must mockup wdedup::SequentialFile and wdedup::AppendFile to
+// ensure the testing unit will be the specified impl themselves.
 namespace wdedup {
 
 // Mocked up sequential-scan file driver for testing.

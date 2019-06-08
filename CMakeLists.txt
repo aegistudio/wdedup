@@ -59,10 +59,9 @@ if(WDEDUP_RUNTESTS)
   endif()
 
   # Configure macros for conveniently defining some test cases.
-  macro(wdedup_testcase WDEDUP_TESTNAME WDEDUP_SRCLIST)
+  macro(wdedup_testcase WDEDUP_TESTNAME)
     add_executable("${WDEDUP_TESTNAME}.test"
-        "${WDEDUP_TESTSPATH}/${WDEDUP_TESTNAME}.cpp"
-        ${WDEDUP_SRCLIST})
+        "${WDEDUP_TESTSPATH}/${WDEDUP_TESTNAME}.cpp" ${ARGN})
     target_link_libraries("${WDEDUP_TESTNAME}.test" GTest::GTest GTest::Main)
     add_test("wdedup.${WDEDUP_TESTNAME}" "${WDEDUP_TESTNAME}.test")
   endmacro(wdedup_testcase)
