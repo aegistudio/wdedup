@@ -69,3 +69,11 @@ if(WDEDUP_RUNTESTS)
   # Define test cases just inside the tests directory.
   add_subdirectory(${WDEDUP_TESTSPATH})
 endif() # WDEDUP_RUNTEST
+
+# Add our main target (wdedup) here.
+add_executable(wdedup "${WDEDUP_SRCPATH}/main.cpp"
+                      "${WDEDUP_SRCPATH}/wio.cpp"
+                      "${WDEDUP_SRCPATH}/wiobase.cpp"
+                      "${WDEDUP_SRCPATH}/wpflsimple.cpp"
+                      "${WDEDUP_SRCPATH}/wprof.cpp"
+                      "${WDEDUP_SRCPATH}/wsortdedup.cpp")

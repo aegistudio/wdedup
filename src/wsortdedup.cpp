@@ -52,8 +52,8 @@ struct SortDedupItem final {
 	/// Calculate difference between this item and that item.
 	int operator-(const SortDedupItem& that) const noexcept {
 		// Compare the bloom.
-		int diff = bloom - that.bloom;
-		if(diff != 0) return diff > 0? 1 : -1;
+		if(bloom != that.bloom) 
+			return bloom > that.bloom? 1 : -1;
 
 		// Compare the nullity of the heap.
 		if(pool == nullptr) {
@@ -95,8 +95,10 @@ bool SortDedup::insert(const std::string& word, fileoff_t offset) noexcept {
 
 	// Profile the word.
 	unsigned long bloom = 0;
-	size_t n = 0; for(; n < word.size() && n < sizeof(unsigned long); ++ n) 
-		bloom = (bloom << 8) | (word[n] & 0x0ffl);
+	size_t n = 0; for(; n < sizeof(unsigned long); ++ n) {
+		char w = n < word.size()? word[n] : 0;
+		bloom = (bloom << 8) | (w & 0x0ffl);
+	}
 	size_t allocpool = 0; if(n < word.size()) 
 		// If allocation is inevitable, the allocated string must be null 
 		// terminated, so the size must plus one.
@@ -119,6 +121,7 @@ bool SortDedup::insert(const std::string& word, fileoff_t offset) noexcept {
 		pool[allocpool] = '\0';
 		item.pool = pool;
 	} else item.pool = nullptr;
+	return true;
 }
 
 void SortDedup::pour(
@@ -164,12 +167,12 @@ void SortDedup::pour(
 	for(size_t i = 1; i < dedup.arraysize; ++ i) {
 		// Output the marked content if it is not a duplication.
 		if(!(items[i] == items[j])) {
-			writeitem(items[i], j, i - 1);
+			writeitem(items[j], j, i - 1);
 			j = i;
 		}
 	}
 	writeitem(items[j], j, dedup.arraysize - 1);
-	output -> close();
+	output->close();
 }
 
 } // namespace wdedup
