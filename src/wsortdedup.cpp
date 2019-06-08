@@ -163,7 +163,10 @@ void SortDedup::pour(
 	size_t j = 0;
 	for(size_t i = 1; i < dedup.arraysize; ++ i) {
 		// Output the marked content if it is not a duplication.
-		if(!(items[i] == items[j])) writeitem(items[i], j, i - 1);
+		if(!(items[i] == items[j])) {
+			writeitem(items[i], j, i - 1);
+			j = i;
+		}
 	}
 	writeitem(items[j], j, dedup.arraysize - 1);
 	output -> close();
