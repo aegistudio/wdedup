@@ -29,8 +29,12 @@
  */
 #pragma once
 #include <string>
+#include <iostream>
 
 namespace wdedup {
+
+/// Forwarded definition of file offset type.
+using fileoff_t = size_t;
 
 /**
  * @brief thrown information about unrecoverable errors.
