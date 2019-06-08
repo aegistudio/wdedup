@@ -46,7 +46,8 @@ inline bool isWhitespace(char c) {
  * Simulation for std::fstream >> std::string. While returned, the
  * pointer must sit on EOF or an empty character.
  */
-static bool readstring(wdedup::SequentialFile& f, std::string& s) {
+static bool readString(wdedup::SequentialFile& f, 
+	std::string& s, fileoff_t& woffset) throw (wdedup::Error) {
 	char c;
 
 	// White space elimination.
@@ -54,6 +55,7 @@ static bool readstring(wdedup::SequentialFile& f, std::string& s) {
 		if(f.eof()) return false;
 		f >> c; if(!isWhitespace(c)) break;
 	}
+	woffset = f.tell() - 1;
 
 	// Word generation.
 	std::stringstream sbuild;
@@ -161,11 +163,12 @@ size_t wprof(
 	// Loop reading the files. And writing out the content.
 	bool iseof = false;  
 	std::string inputEntry;
+	fileoff_t woffset;
 	while(!iseof || inputEntry != "") {
 		wdedup::SortDedup dedup(userpage.get(), userpageSize);
 
 		// Place the remaining entry first.
-		if(inputEntry != "" && !dedup.insert(inputEntry, offset)) 
+		if(inputEntry != "" && !dedup.insert(inputEntry, woffset)) 
 			throw std::logic_error("Insufficient working memory.");
 		inputEntry = "";
 
@@ -175,11 +178,9 @@ size_t wprof(
 		// Read an item from the original file first.
 		while(!iseof) {
 			prevoff = originalFile.tell();
-			if(readstring(originalFile, inputEntry)) {
+			if(readString(originalFile, inputEntry, woffset)) {
 				// Place the newly read entry.
 				iseof = false;
-				fileoff_t woffset = originalFile.tell();
-				woffset = woffset - inputEntry.size() - 1;
 				if(dedup.insert(inputEntry, woffset)) 
 					inputEntry = "";
 				else break;
