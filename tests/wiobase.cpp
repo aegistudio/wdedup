@@ -35,29 +35,32 @@
 // ensure the testing unit will be the specified impl themselves.
 namespace wdedup {
 
-// Mocked up sequential-scan file driver for testing.
-SequentialFile::SequentialFile(std::string path, std::string role) 
-	throw (wdedup::Error) : pimpl(nullptr) {
-
-	std::function<void(int)> report = [=](int eno) {
+// Used for creating a reporting lambda expression.
+static std::function<void(int)> getReportFunction(
+	std::string path, std::string role) {
+	return [=](int eno) {
 		throw wdedup::Error(eno, path, role);
 	};
+}
+
+// Mocked up sequential-scan file driver for testing.
+SequentialFile::SequentialFile(std::string path, std::string role,
+	FileMode) throw (wdedup::Error) : pimpl(nullptr) {
 
 	pimpl = std::unique_ptr<SequentialFile::Impl>(
-		new SequentialFileBase(path.c_str(), report));
+		new SequentialFileBase(path.c_str(), 
+		getReportFunction(path, role)));
 }
 
 // Mocked up append-only file driver for testing.
-AppendFile::AppendFile(std::string path, std::string role, bool log)
-	throw (wdedup::Error) : pimpl(nullptr) {
-
-	std::function<void(int)> report = [=](int eno) {
-		throw wdedup::Error(eno, path, role);
-	};
+AppendFile::AppendFile(std::string path, std::string role, 
+	FileMode) throw (wdedup::Error) : pimpl(nullptr) {
 
 	pimpl = std::unique_ptr<AppendFile::Impl>(
-		new AppendFileBuffer(path.c_str(), report));
+		new AppendFileBuffer(path.c_str(),
+		getReportFunction(path, role)));
 }
+
 }
 
 /**
@@ -71,9 +74,12 @@ TEST(wio, readwrite) {
 	static const char* filename = "wio.readwrite.temp";
 	remove(filename);	// Make sure absence of file.
 
+	// Create the file mode.
+	wdedup::FileMode mode;
+
 	// Write phase of the append file.
 	{
-		wdedup::AppendFile wb(filename, "test");
+		wdedup::AppendFile wb(filename, "test", mode);
 		for(int i = 0; i < times; i ++) wb << i;
 		wb << std::string("Haha");
 		for(float i = 0.0; i < times; i += 1.0) wb << i;
@@ -82,7 +88,7 @@ TEST(wio, readwrite) {
 
 	// Read phase of the append file.
 	{
-		wdedup::SequentialFile sb(filename, "test");
+		wdedup::SequentialFile sb(filename, "test", mode);
 		{ int number; 
 		for(int i = 0; i < times; i ++) {
 			sb >> number; EXPECT_EQ(number, i); } }

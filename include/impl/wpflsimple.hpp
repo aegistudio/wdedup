@@ -56,7 +56,8 @@ public:
 	 * a prefetching will be performed, and error will be thrown if
 	 * I/O error occurs while prefetching.
 	 */
-	ProfileInputSimple(std::string path) throw (wdedup::Error);
+	ProfileInputSimple(std::string path, 
+		wdedup::FileMode mode) throw (wdedup::Error);
 
 	/// Profile input destructor.
 	virtual ~ProfileInputSimple() noexcept {}
@@ -80,7 +81,8 @@ public:
 	 * Construct a profile output writing specified path. The file
 	 * will be written in simple format.
 	 */
-	ProfileOutputSimple(std::string path) throw (wdedup::Error);
+	ProfileOutputSimple(std::string path,
+		wdedup::FileMode mode) throw (wdedup::Error);
 
 	/// Profile output destructor.
 	virtual ~ProfileOutputSimple() noexcept {}

@@ -45,6 +45,21 @@
 #include "wtypes.hpp"
 
 namespace wdedup {
+/**
+ * @brief The flags for reading and writing files.
+ *
+ * In principle, to avoid problem, the flags for creating a
+ * wdedup::AppendFile must matches the wdedup::SequentialFile.
+ */
+struct FileMode {
+	/// Indicates whether the file will be opened as a log file.
+	/// Log file will ensure that data between wdedup::sync will
+	/// either be missing or written out as a integrity part.
+	/// (wdedup::AppendFile will use this flag, however the
+	///  wdedup::SequentialFIle will ignore because there's no
+	///  difference between a non-log and a log file).
+	bool log;
+};
 
 /**
  * @brief Defines the sequential-scan input file.
@@ -79,12 +94,14 @@ struct SequentialFile final {
 	 * The constructor orchestrates SequentialFile::Impl provided by
 	 * the library, so that they can provide desired features. 
 	 *
-	 * @param [in] path the full path to the file.
-	 * @param [in] role the role of the file.
+	 * @param[in] path the full path to the file.
+	 * @param[in] role the role of the file.
+	 * @param[in] mode the mode for opening the sequential file.
 	 * @throw wdedup::Error If the specified file is not found, an 
 	 * error will be thrown and the caller needs to handle such cases.
 	 */
-	SequentialFile(std::string path, std::string role) throw (wdedup::Error);
+	SequentialFile(std::string path, std::string role, 
+			FileMode mode) throw (wdedup::Error);
 
 	/// Close the file when the object get destructed.
 	~SequentialFile() noexcept {};
@@ -166,11 +183,12 @@ struct AppendFile final {
 	 *
 	 * @param[in] path the full path to the file.
 	 * @param[in] role the role of the file.
-	 * @param[in] log whether this file is a log file.
+	 * @param[in] mode the mode for opening the sequential file.
 	 * @throw wdedup::Error If I/O error occurs, like no permission,
 	 * no more free space, no more
 	 */
-	AppendFile(std::string path, std::string role, bool log = false) throw (wdedup::Error);
+	AppendFile(std::string path, std::string role, 
+			FileMode mode) throw (wdedup::Error);
 
 	/// Close the file when the object get destructed.
 	~AppendFile() noexcept {}

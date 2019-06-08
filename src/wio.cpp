@@ -38,8 +38,8 @@ static inline std::function<void(int)> getReportFunction(
 	};
 }
 
-SequentialFile::SequentialFile(std::string path, std::string role) 
-	throw (wdedup::Error) : pimpl(nullptr) {
+SequentialFile::SequentialFile(std::string path, std::string role,
+	FileMode mode) throw (wdedup::Error) : pimpl(nullptr) {
 
 	// Initialize the basic append file.
 	pimpl = std::unique_ptr<SequentialFile::Impl>(
@@ -47,10 +47,10 @@ SequentialFile::SequentialFile(std::string path, std::string role)
 		getReportFunction(path, role)));
 }
 
-AppendFile::AppendFile(std::string path, std::string role, bool log)
-	throw (wdedup::Error) : pimpl(nullptr) {
+AppendFile::AppendFile(std::string path, std::string role, 
+	FileMode mode) throw (wdedup::Error) : pimpl(nullptr) {
 
-	if(log) {
+	if(mode.log) {
 		// Initialize the log append file.
 		pimpl = std::unique_ptr<AppendFile::Impl>(
 			new AppendFileLog(path.c_str(), 

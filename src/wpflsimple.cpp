@@ -31,8 +31,9 @@
 
 namespace wdedup {
 
-ProfileInputSimple::ProfileInputSimple(std::string path) throw (wdedup::Error) : 
-	input(std::move(path), "profile-simple"), head(""), isempty(true) {
+ProfileInputSimple::ProfileInputSimple(std::string path, FileMode mode) 
+	throw (wdedup::Error) : input(std::move(path), "profile-simple", mode), 
+	head(""), isempty(true) {
 
 	popFill();
 }
@@ -63,8 +64,8 @@ wdedup::ProfileItem ProfileInputSimple::pop() throw (wdedup::Error) {
 	return result;
 }
 
-ProfileOutputSimple::ProfileOutputSimple(std::string path) throw (wdedup::Error) :
-	output(path, "profile-simple") {}
+ProfileOutputSimple::ProfileOutputSimple(std::string path, FileMode mode) 
+	throw (wdedup::Error) : output(path, "profile-simple", mode) {}
 
 void ProfileOutputSimple::push(ProfileItem pi) throw (wdedup::Error) {
 	if(pi.repeated) pi.occur = 0;
