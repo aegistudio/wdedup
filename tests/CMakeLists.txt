@@ -19,7 +19,14 @@
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR 
 # IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN 
 # THE SOFTWARE.
+
 wdedup_testcase(wiobase    "${WDEDUP_SRCPATH}/wiobase.cpp")
+
 wdedup_testcase(wpflsimple "${WDEDUP_SRCPATH}/wpflsimple.cpp"
                            "${WDEDUP_SRCPATH}/wiobase.cpp"
                            "${WDEDUP_SRCPATH}/wio.cpp")
+
+wdedup_testcase(wsortdedup "${WDEDUP_SRCPATH}/wpflsimple.cpp"
+                           "${WDEDUP_SRCPATH}/wiobase.cpp"
+                           "${WDEDUP_SRCPATH}/wio.cpp"
+                           "${WDEDUP_SRCPATH}/wsortdedup.cpp")

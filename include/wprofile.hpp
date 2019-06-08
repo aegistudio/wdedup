@@ -57,11 +57,12 @@ struct ProfileItem {
 	fileoff_t occur;
 
 	/// Construct a repeated item.
-	ProfileItem(std::string word) noexcept: word(std::move(word)) {}
+	ProfileItem(std::string word) noexcept: 
+		word(std::move(word)), repeated(true), occur(0) {}
 
 	/// Construct a single occurence item.
-	ProfileItem(std::string word, bool repeated, fileoff_t occur):
-		word(std::move(word)), repeated(repeated), occur(occur) {}
+	ProfileItem(std::string word, fileoff_t occur) noexcept:
+		word(std::move(word)), repeated(false), occur(occur) {}
 
 	/// Move constructor of a profile item.
 	ProfileItem(ProfileItem&& item) noexcept:
