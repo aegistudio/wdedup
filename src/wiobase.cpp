@@ -79,9 +79,10 @@ bool SequentialFileBase::eof() const noexcept {
 	if(readoff != readlen) return false;
 	ssize_t nextreadlen = ::read(fd, readbuf, bufsiz);
 	// As error will be detected in proceeding read, ignore.
-	if(nextreadlen == -1) return false;
+	if(nextreadlen < 0) return false;
 	else if(nextreadlen == 0) return true;
 	readoff = 0; filetell += readlen; readlen = (size_t)nextreadlen;
+	return false;
 }
 
 fileoff_t SequentialFileBase::tell() const noexcept {

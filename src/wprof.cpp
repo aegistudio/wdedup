@@ -29,7 +29,6 @@
  */
 #include "wprof.hpp"
 #include "impl/wsortdedup.hpp"
-#include <fstream>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -37,6 +36,38 @@
 #include <errno.h>
 
 namespace wdedup {
+
+// Helper for judging whether a character is whitespace.
+inline bool isWhitespace(char c) {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+}
+
+/**
+ * Simulation for std::fstream >> std::string. While returned, the
+ * pointer must sit on EOF or an empty character.
+ */
+static bool readstring(wdedup::SequentialFile& f, std::string& s) {
+	char c;
+
+	// White space elimination.
+	while(true) {
+		if(f.eof()) return false;
+		f >> c; if(!isWhitespace(c)) break;
+	}
+
+	// Word generation.
+	std::stringstream sbuild;
+	do {
+		sbuild << c;
+		if(f.eof()) break;
+		f >> c;
+		if(isWhitespace(c)) break;
+	} while(true);
+
+	// Place the string to the s.
+	s = sbuild.str();
+	return true;
+}
 
 /**
  * @brief Indicates the type of current log item.
@@ -120,10 +151,12 @@ size_t wprof(
 		throw wdedup::Error(EIO, path, role);
 
 	// Open file and reposition the file read pointer to the offset.
-	std::fstream originalFile(path, std::ios::in);
-	if(offset > 0) originalFile.seekg(offset, std::ios::beg);
-	if(originalFile.bad() || originalFile.fail())
-		throw wdedup::Error(errno, path, role);
+	// XXX(haoran.luo): We CANNOT use std::fstream here. Because when the file
+	// reaches EOF, the std::fstream::tellg will always return pos_type(-1),
+	// making us writting out wrong value about the file to be operated.
+	wdedup::FileMode originalMode;
+	originalMode.seekset = offset;
+	wdedup::SequentialFile originalFile(path, role, originalMode);
 
 	// Loop reading the files. And writing out the content.
 	bool iseof = false;  
@@ -136,18 +169,23 @@ size_t wprof(
 			throw std::logic_error("Insufficient working memory.");
 		inputEntry = "";
 
+		// Recorded in order to mark milestone when dedup.insert failed.
+		fileoff_t prevoff;
+
 		// Read an item from the original file first.
 		while(!iseof) {
-			if(originalFile >> inputEntry) {
+			prevoff = originalFile.tell();
+			if(readstring(originalFile, inputEntry)) {
 				// Place the newly read entry.
 				iseof = false;
-				fileoff_t woffset = originalFile.tellg();
-				woffset = woffset - inputEntry.size();
+				fileoff_t woffset = originalFile.tell();
+				woffset = woffset - inputEntry.size() - 1;
 				if(dedup.insert(inputEntry, woffset)) 
 					inputEntry = "";
 				else break;
 			}
 			else {
+				prevoff = originalFile.tell();
 				inputEntry = "";
 				iseof = true;
 			}
@@ -156,11 +194,9 @@ size_t wprof(
 		// Write the current entries to the underlying file.
 		wdedup::SortDedup::pour(std::move(dedup), 
 			cfg.openOutput(std::to_string(segments)));
-		fileoff_t curoff = originalFile.tellg();
-		std::cerr << offset << " " << (curoff - 1) << std::endl;
 		cfg.olog() << wdedup::WProfLog::segment << 
-			offset << (curoff - 1) << wdedup::sync;
-		offset = curoff;
+			offset << (prevoff - 1) << wdedup::sync;
+		offset = prevoff;
 		++ segments;
 	}
 
