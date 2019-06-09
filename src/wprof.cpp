@@ -133,7 +133,7 @@ size_t wprof(
 
 	// Allocate the memory space for executing wprof.
 	// TODO(haoran.luo): consider it to be done by the caller?
-	size_t userpageSize = 1l * 1024l * 1024l * 1024l; // 16GB.
+	size_t userpageSize = 16l * 1024l * 1024l * 1024l; // 1GB.
 	std::shared_ptr<void> userpage([=]() -> void* {
 		void* userpage = mmap(NULL, userpageSize, PROT_READ | PROT_WRITE,
 			MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
