@@ -46,6 +46,14 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(WDEDUP_SRCPATH   "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(WDEDUP_TESTSPATH "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 
+# Boost::ProgramOptions required for building the command line parsing.
+find_package(Boost 1.58.0 REQUIRED COMPONENTS program_options)
+if(NOT ${Boost_FOUND})
+  message(SEND_ERROR "Boost::ProgramOptions required for command line parsing.")
+else()
+  include_directories(${Boost_INCLUDE_DIR})
+endif()
+
 # Configure and use GoogleTest as unit test driver.
 if(WDEDUP_RUNTESTS)
   # Enable CTest provided by CMake.
@@ -79,4 +87,6 @@ add_executable(wdedup "${WDEDUP_SRCPATH}/main.cpp"
                       "${WDEDUP_SRCPATH}/wprof.cpp"
                       "${WDEDUP_SRCPATH}/wmerge.cpp"
                       "${WDEDUP_SRCPATH}/wfindfirst.cpp"
-                      "${WDEDUP_SRCPATH}/wsortdedup.cpp")
+                      "${WDEDUP_SRCPATH}/wsortdedup.cpp"
+                      "${WDEDUP_SRCPATH}/wcli.cpp")
+target_link_libraries(wdedup Boost::program_options)

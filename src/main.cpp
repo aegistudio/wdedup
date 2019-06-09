@@ -31,6 +31,7 @@
 #include "wdedup.hpp"
 #include "impl/wpflsimple.hpp"
 #include "impl/wpflfilter.hpp"
+#include "impl/wcli.hpp"
 #include "wtypes.hpp"
 #include <iostream>
 #include <sys/types.h>
@@ -40,10 +41,16 @@
 #include <cstring>
 
 int main(int argc, char** argv) {
-	// TODO(haoran.luo): Perform argument parse and help printing here.
-	static std::string workdir = argv[1];
+	// Parse arguments using the command line parser.
+	wdedup::ProgramOptions options;
+	int retcode = argparse(argc, argv, options);
+	if(retcode != 0) return retcode;
+	if(!options.run) return 0;
+
+	// Forward some command line arguments.
+	static const std::string& fileInput = options.origfile;
+	static const std::string& workdir = options.workdir;
 	static std::string logPath = workdir + "/log";
-	static std::string fileInput = argv[2];
 
 	// Arguments are parsed, now attempt to initialize and run stages.
 	try {
