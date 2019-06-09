@@ -139,6 +139,7 @@ size_t wprof(
 			MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 		if(userpage == MAP_FAILED) 
 			throw std::runtime_error("Cannot allocate enough memory.");
+		return userpage;
 	}(), [=](void* p) { munmap(p, userpageSize); });
 
 	// Stat the file to ensure our operations to the file is valid.
@@ -193,8 +194,10 @@ size_t wprof(
 		}
 
 		// Write the current entries to the underlying file.
+		std::string segmentName = std::to_string(segments);
+		cfg.remove(segmentName);
 		wdedup::SortDedup::pour(std::move(dedup), 
-			cfg.openOutput(std::to_string(segments)));
+			cfg.openOutput(segmentName));
 		cfg.olog() << wdedup::WProfLog::segment << 
 			offset << (prevoff - 1) << wdedup::sync;
 		offset = prevoff;

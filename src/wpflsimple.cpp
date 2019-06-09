@@ -41,15 +41,16 @@ ProfileInputSimple::ProfileInputSimple(std::string path, FileMode mode)
 void ProfileInputSimple::popFill() throw (wdedup::Error) {
 	if(input.eof()) isempty = true;
 	else {
+		char repeated;
 		isempty = false;
-		input >> head.word >> head.occur;
+		input >> head.word >> repeated;
 
-		// When the item is repeated, the occurance will be set to 0.
-		// otherwise the occur will be occurance + 1.
-		if(head.occur == 0) head.repeated = true;
+		// When the item is repeated, the value will be any non zero
+		// value, otherwise it will be zero followed by an occurance.
+		if(repeated != 0) head.repeated = true;
 		else {
-			head.occur --;
 			head.repeated = false;
+			input >> head.occur;
 		}
 	}
 }
@@ -68,12 +69,9 @@ ProfileOutputSimple::ProfileOutputSimple(std::string path, FileMode mode)
 	throw (wdedup::Error) : output(path, "profile-simple", mode) {}
 
 void ProfileOutputSimple::push(ProfileItem pi) throw (wdedup::Error) {
-	if(pi.repeated) pi.occur = 0;
-	else {
-		pi.occur ++;
-		if(pi.occur == 0) throw std::logic_error("Too large file offset.");
-	}
-	output << pi.word << pi.occur;
+	output << pi.word;
+	if(pi.repeated) output << (char)1;
+	else output << (char)0 << pi.occur;
 }
 
 void ProfileOutputSimple::close() throw (wdedup::Error) {

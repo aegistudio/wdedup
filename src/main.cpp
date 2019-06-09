@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
 
 			// Remove existing file if it already exists.
 			virtual void remove(std::string path) throw (wdedup::Error) {
-				remove(workdir + "/" + path);
+				::remove((workdir + "/" + path).c_str());
 			}
 		} config;
 
