@@ -28,7 +28,6 @@
  * for more definition details.
  */
 #include "wdedup.hpp"
-#include "impl/wsortdedup.hpp"
 #include <queue>
 #include <cassert>
 

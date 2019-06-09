@@ -83,6 +83,10 @@ struct Config {
 	virtual std::unique_ptr<wdedup::ProfileInput>
 			openInput(std::string path) throw (wdedup::Error) = 0;
 
+	/// Open a profile input that filter out repeated profile item.
+	virtual std::unique_ptr<wdedup::ProfileInput>
+			openSingularInput(std::string path) throw (wdedup::Error) = 0;
+
 	/// Remove specified log file if it already exists.
 	virtual void remove(std::string path) throw (wdedup::Error) = 0;
 };
