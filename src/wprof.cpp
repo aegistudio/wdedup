@@ -27,7 +27,7 @@
  * This file implements the profiling function, see the header file
  * for more definition details.
  */
-#include "wprof.hpp"
+#include "wdedup.hpp"
 #include "impl/wsortdedup.hpp"
 #include <sys/mman.h>
 #include <sys/types.h>
@@ -87,10 +87,10 @@ enum class WProfLog : char {
 	 *     offset_type start, end;
 	 * };
 	 * ```
-	 * Validation will be performed during recovery, and
-	 * failing to 
 	 */
 	segment = 's',
+
+	/// Indicates the ending of wprof stage.
 	end = 'e'
 };
 
@@ -133,7 +133,7 @@ size_t wprof(
 
 	// Allocate the memory space for executing wprof.
 	// TODO(haoran.luo): consider it to be done by the caller?
-	size_t userpageSize = 16l * 1024l * 1024l * 1024l; // 16GB.
+	size_t userpageSize = 1l * 1024l * 1024l * 1024l; // 16GB.
 	std::shared_ptr<void> userpage([=]() -> void* {
 		void* userpage = mmap(NULL, userpageSize, PROT_READ | PROT_WRITE,
 			MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);

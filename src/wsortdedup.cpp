@@ -118,7 +118,7 @@ bool SortDedup::insert(const std::string& word, fileoff_t offset) noexcept {
 		poolsize = newpoolsize;
 		char* pool = &((char*)vmaddr)[vmsize - newpoolsize];
 		memcpy(pool, &word[n], allocpool - 1);
-		pool[allocpool] = '\0';
+		pool[allocpool - 1] = '\0';
 		item.pool = pool;
 	} else item.pool = nullptr;
 	return true;

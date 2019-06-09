@@ -76,4 +76,5 @@ add_executable(wdedup "${WDEDUP_SRCPATH}/main.cpp"
                       "${WDEDUP_SRCPATH}/wiobase.cpp"
                       "${WDEDUP_SRCPATH}/wpflsimple.cpp"
                       "${WDEDUP_SRCPATH}/wprof.cpp"
+                      "${WDEDUP_SRCPATH}/wmerge.cpp"
                       "${WDEDUP_SRCPATH}/wsortdedup.cpp")
