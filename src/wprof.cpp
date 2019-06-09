@@ -133,7 +133,7 @@ size_t wprof(
 
 	// Allocate the memory space for executing wprof.
 	// TODO(haoran.luo): consider it to be done by the caller?
-	size_t userpageSize = 16l * 1024l * 1024l * 1024l; // 1GB.
+	size_t userpageSize = 1l * 1024l * 1024l * 1024l; // 1GB.
 	std::shared_ptr<void> userpage([=]() -> void* {
 		void* userpage = mmap(NULL, userpageSize, PROT_READ | PROT_WRITE,
 			MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
@@ -141,6 +141,11 @@ size_t wprof(
 			throw std::runtime_error("Cannot allocate enough memory.");
 		return userpage;
 	}(), [=](void* p) { munmap(p, userpageSize); });
+	std::shared_ptr<void> lockedpage([=]() -> void* {
+		if(mlock(userpage.get(), userpageSize) != 0)
+			throw std::runtime_error("Cannot lock memory page.");
+		return userpage.get();
+	}(), [=](void* p) { munlock(p, userpageSize); });
 
 	// Stat the file to ensure our operations to the file is valid.
 	static const char* role = "original-file";
