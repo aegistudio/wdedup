@@ -28,6 +28,7 @@
  * file for interface details.
  */
 #include "impl/wsortdedup.hpp"
+#include "impl/wwmman.hpp"
 #include "wbloom.hpp"
 #include <cassert>
 #include <cstring>
@@ -36,62 +37,30 @@
 
 namespace wdedup {
 
-/// SortDedupItem used for storing information about words.
-struct SortDedupItem final {
-	/// The Bloom-ed string key.
-	Bloom bloom;
-
-	/// The first occurence of this item.
-	fileoff_t occur;
-
-	/// Indicate this item equals the next one.
-	bool operator==(const SortDedupItem& that) const noexcept {
-		return bloom == that.bloom;
-	}
-	/// Indicate this item is less than the next one.
-	bool operator<(const SortDedupItem& that) const noexcept {
-		return bloom < that.bloom;
-	}
-};
-
-SortDedup::SortDedup(void* vmaddr, size_t vmsize) noexcept:
-	vmaddr(vmaddr), vmsize(vmsize), poolsize(0), arraysize(0) {}
+SortDedup::SortDedup(void* vmaddr, size_t vmsize) noexcept: 
+	wmman(vmaddr, vmsize) {}
 
 SortDedup::SortDedup(SortDedup&& rhs) noexcept:
-	vmaddr(rhs.vmaddr), vmsize(rhs.vmsize), 
-	poolsize(rhs.poolsize), arraysize(rhs.arraysize) {
-
-	// Make rhs an invalid wdedup::SortDedup object.
-	rhs.vmaddr = (void*)0;
-	rhs.vmsize = 0;
-	rhs.poolsize = 0;
-	rhs.arraysize = 0;
-}
+	wmman(std::move(rhs.wmman)) {}
 
 bool SortDedup::insert(const std::string& word, fileoff_t offset) noexcept {
 	if(word.size() == 0) return false; // Invalid word specified.
-	assert(vmsize > 0);	// If vmsize <= 0, it must be a bug in caller.
 
 	// Profile the word.
 	Bloom bloomed;
 	size_t allocpool = bloomed.decompose(word);
 
-	// Test whether allocation will be done.
-	size_t newvmsize = (allocpool + poolsize) 
-		+ (arraysize + 1) * sizeof(SortDedupItem);
-	if(newvmsize > vmsize) return false;
+	// Allocate new portion of memory.
+	SortDedupItem* newitem = nullptr;
+	char* newpool = nullptr;
+	if(!wmman.alloc(allocpool, newitem, newpool)) return false;
 
 	// Push the new item into the deduplication sorter.
-	size_t curarraysize = arraysize; arraysize ++;
-	SortDedupItem& item = ((SortDedupItem*)vmaddr)[curarraysize];
-	item.bloom = bloomed;	item.occur = offset;
+	newitem->bloom = bloomed;	newitem->occur = offset;
 	if(allocpool > 0) {
-		size_t newpoolsize = poolsize + allocpool;
-		poolsize = newpoolsize;
-		char* pool = &((char*)vmaddr)[vmsize - newpoolsize];
-		memcpy(pool, bloomed.pool, allocpool - 1);
-		pool[allocpool - 1] = '\0';
-		item.bloom.pool = pool;
+		memcpy(newpool, bloomed.pool, allocpool - 1);
+		newpool[allocpool - 1] = '\0';
+		newitem->bloom.pool = newpool;
 	}
 	return true;
 }
@@ -100,6 +69,7 @@ void SortDedup::pour(
 	SortDedup dedup, std::unique_ptr<wdedup::ProfileOutput> output
 ) throw (wdedup::Error) {
 	assert(output != nullptr);
+	if(dedup.wmman.size() == 0) return;
 
 	// Public code for writing out item based on duplication.
 	auto writeitem = [&] (const SortDedupItem& item, size_t first, size_t last) {
@@ -113,19 +83,19 @@ void SortDedup::pour(
 	};
 
 	// Perform sorting on the array items.
-	SortDedupItem* items = (SortDedupItem*)dedup.vmaddr;
-	std::sort(&items[0], &items[dedup.arraysize]);
+	SortDedupItem* items = (SortDedupItem*)dedup.wmman.begin();
+	std::sort(dedup.wmman.begin(), dedup.wmman.end());
 
 	// Scan and sequentially output the content.
 	size_t j = 0;
-	for(size_t i = 1; i < dedup.arraysize; ++ i) {
+	for(size_t i = 1; i < dedup.wmman.size(); ++ i) {
 		// Output the marked content if it is not a duplication.
 		if(!(items[i] == items[j])) {
 			writeitem(items[j], j, i - 1);
 			j = i;
 		}
 	}
-	writeitem(items[j], j, dedup.arraysize - 1);
+	writeitem(items[j], j, dedup.wmman.size() - 1);
 	output->close();
 }
 

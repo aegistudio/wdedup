@@ -30,9 +30,30 @@
  */
 #pragma once
 #include "wprofile.hpp"
+#include "impl/wwmman.hpp"
+#include "wbloom.hpp"
 #include <memory>
 
 namespace wdedup {
+
+/// SortDedupItem used for storing information about words.
+struct SortDedupItem final {
+	/// The Bloom-ed string key.
+	wdedup::Bloom bloom;
+
+	/// The first occurence of this item.
+	fileoff_t occur;
+
+	/// Indicate this item equals the next one.
+	bool operator==(const SortDedupItem& that) const noexcept {
+		return bloom == that.bloom;
+	}
+	/// Indicate this item is less than the next one.
+	bool operator<(const SortDedupItem& that) const noexcept {
+		return bloom < that.bloom;
+	}
+};
+
 
 /**
  * @brief This file defines the sort analogous deduplication
@@ -74,19 +95,8 @@ struct SortDedup final {
 	static void pour(SortDedup, std::unique_ptr<wdedup::ProfileOutput>) 
 			throw (wdedup::Error);
 private:
-	/// The virtual memory used as working memory.
-	void* vmaddr;
-
-	/// The available size of memory that can be used for 
-	/// deduplication. In unit of bytes.
-	size_t vmsize;
-
-	/// The size occupied by the string pool. Variadic string
-	/// are stored in the pool. In unit of bytes.
-	size_t poolsize;
-
-	/// The size occupied by the array items. In unit of items.
-	size_t arraysize;
+	/// The working memory manager used to allocate objects.
+	wdedup::MemoryManager<wdedup::SortDedupItem> wmman;
 };
 
 } // namespace wdedup

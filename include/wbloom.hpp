@@ -36,6 +36,7 @@
 #include <string>
 #include <sstream>
 #include <cstring>
+#include <type_traits>
 
 namespace wdedup {
 
@@ -59,9 +60,6 @@ struct Bloom final {
 
 	/// Construct a empty bloom string.
 	Bloom() noexcept: bloom(0), pool(nullptr) {}
-
-	/// Destructor of the Bloom class.
-	~Bloom() noexcept {}
 
 	/// Copy constructor of the bloomed string.
 	Bloom(const Bloom& b) noexcept: bloom(b.bloom), pool(b.pool) {}
@@ -142,5 +140,10 @@ struct Bloom final {
 		return std::move(sbuild.str());
 	}
 };
+
+// Ensure that wdedup::Bloom is well-formed c++ classes.
+static_assert(	std::is_trivially_destructible<wdedup::Bloom>::value &&
+		std::is_nothrow_default_constructible<wdedup::Bloom>::value,
+		"The wdedup::Bloom does not fulfill assumptions.");
 
 } // namespace wdedup
