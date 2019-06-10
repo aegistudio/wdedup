@@ -106,6 +106,9 @@ struct SequentialFile final {
 		/// only be modified when Impl::read is invoked.
 		fileoff_t tell;
 
+		/// Initialize the fields for children.
+		Impl() noexcept: eof(false), tell(0) {}
+
 		/// Should befriend the wdedup::SequentialFile.
 		friend class wdedup::SequentialFile;
 	};

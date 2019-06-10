@@ -50,7 +50,7 @@ SequentialFileBase::SequentialFileBase(
 	// Learning about the current location of the file.
 	off64_t offset = lseek64(fd, seekset, SEEK_SET);
 	if(offset == (off64_t)(-1)) report(errno);
-	filetell = offset;
+	filetell = offset; tell = filetell; eof = checkeof();
 }
 
 SequentialFileBase::~SequentialFileBase() noexcept {
