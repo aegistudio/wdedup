@@ -28,6 +28,7 @@
  * file for interface details.
  */
 #include "impl/wsortdedup.hpp"
+#include "wbloom.hpp"
 #include <cassert>
 #include <cstring>
 #include <sstream>
@@ -37,41 +38,19 @@ namespace wdedup {
 
 /// SortDedupItem used for storing information about words.
 struct SortDedupItem final {
-	/// Pointer to string pool, or 0 if there's no more content 
-	/// to be pooled. The pointee string must be null terminated
-	/// so it is qualified C-string.
-	char* pool;
-
-	/// The first characters in the string pool. You can perform
-	/// bloom filtering instead of string comparisons.
-	unsigned long bloom;
+	/// The Bloom-ed string key.
+	Bloom bloom;
 
 	/// The first occurence of this item.
 	fileoff_t occur;
 
-	/// Calculate difference between this item and that item.
-	int operator-(const SortDedupItem& that) const noexcept {
-		// Compare the bloom.
-		if(bloom != that.bloom) 
-			return bloom > that.bloom? 1 : -1;
-
-		// Compare the nullity of the heap.
-		if(pool == nullptr) {
-			return that.pool == nullptr? 0 : -1;
-		} else {
-			if(that.pool == nullptr) return 1;
-			return strcmp(pool, that.pool);
-		}
-	}
-
-	/// Indicate this item is greater than the next one.
-	bool operator<(const SortDedupItem& that) const noexcept {
-		return (*this - that) < 0;
-	}
-
-	/// Indicates this item equals the next one.
+	/// Indicate this item equals the next one.
 	bool operator==(const SortDedupItem& that) const noexcept {
-		return (*this - that) == 0;
+		return bloom == that.bloom;
+	}
+	/// Indicate this item is less than the next one.
+	bool operator<(const SortDedupItem& that) const noexcept {
+		return bloom < that.bloom;
 	}
 };
 
@@ -94,15 +73,8 @@ bool SortDedup::insert(const std::string& word, fileoff_t offset) noexcept {
 	assert(vmsize > 0);	// If vmsize <= 0, it must be a bug in caller.
 
 	// Profile the word.
-	unsigned long bloom = 0;
-	size_t n = 0; for(; n < sizeof(unsigned long); ++ n) {
-		char w = n < word.size()? word[n] : 0;
-		bloom = (bloom << 8) | (w & 0x0ffl);
-	}
-	size_t allocpool = 0; if(n < word.size()) 
-		// If allocation is inevitable, the allocated string must be null 
-		// terminated, so the size must plus one.
-		allocpool = word.size() - n + 1;
+	Bloom bloomed;
+	size_t allocpool = bloomed.decompose(word);
 
 	// Test whether allocation will be done.
 	size_t newvmsize = (allocpool + poolsize) 
@@ -112,15 +84,15 @@ bool SortDedup::insert(const std::string& word, fileoff_t offset) noexcept {
 	// Push the new item into the deduplication sorter.
 	size_t curarraysize = arraysize; arraysize ++;
 	SortDedupItem& item = ((SortDedupItem*)vmaddr)[curarraysize];
-	item.bloom = bloom;	item.occur = offset;
+	item.bloom = bloomed;	item.occur = offset;
 	if(allocpool > 0) {
 		size_t newpoolsize = poolsize + allocpool;
 		poolsize = newpoolsize;
 		char* pool = &((char*)vmaddr)[vmsize - newpoolsize];
-		memcpy(pool, &word[n], allocpool - 1);
+		memcpy(pool, bloomed.pool, allocpool - 1);
 		pool[allocpool - 1] = '\0';
-		item.pool = pool;
-	} else item.pool = nullptr;
+		item.bloom.pool = pool;
+	}
 	return true;
 }
 
@@ -131,26 +103,8 @@ void SortDedup::pour(
 
 	// Public code for writing out item based on duplication.
 	auto writeitem = [&] (const SortDedupItem& item, size_t first, size_t last) {
-		std::string word;
-
 		// Construct the string content.
-		{
-			std::stringstream sbuild;
-
-			// Reconstruct the string from the bloom.
-			char bloomrev[sizeof(unsigned long) + 1];
-			char* pointer = &bloomrev[sizeof(unsigned long)];
-			*pointer = '\0';	// Make it a C-string.
-			for(int i = 0; i < sizeof(unsigned long); i ++) {
-				pointer --;
-				*pointer = (char)((item.bloom >> (8 * i)) & 0x0ff);
-			}
-			sbuild << bloomrev;
-
-			// Reconstruct the string from the pool.
-			if(item.pool != nullptr) sbuild << item.pool;
-			word = std::move(sbuild.str());
-		}
+		std::string word = item.bloom.reconstruct();
 
 		// Construct other content.
 		if(first == last) 
