@@ -30,6 +30,7 @@
 #include "wdedup.hpp"
 //#include "impl/wsortdedup.hpp"
 #include "impl/wtreededup.hpp"
+#include <vector>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -61,16 +62,17 @@ static bool readString(wdedup::SequentialFile& f,
 	woffset = f.tell() - 1;
 
 	// Word generation.
-	std::stringstream sbuild;
+	std::vector<char> sbuild; sbuild.reserve(8);
 	do {
-		sbuild << c;
+		sbuild.push_back(c);
 		if(f.eof()) break;
 		f >> c;
 		if(isWhitespace(c)) break;
 	} while(true);
 
 	// Place the string to the s.
-	s = sbuild.str();
+	sbuild.push_back('\0');
+	s = std::string(sbuild.data());
 	return true;
 }
 
