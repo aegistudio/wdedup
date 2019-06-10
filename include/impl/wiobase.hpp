@@ -58,8 +58,6 @@ struct SequentialFileBase : public SequentialFile::Impl {
 
 	// Override the pure virtual methods.
 	virtual void read(char*, size_t) throw(wdedup::Error) override;
-	virtual bool eof() const noexcept override;
-	virtual fileoff_t tell() const noexcept override;
 
 	/// Reference to the error report function.
 	const std::function<void(int)> report;
@@ -67,17 +65,20 @@ struct SequentialFileBase : public SequentialFile::Impl {
 	/// The file descriptor that is open for reading.
 	const int fd;
 private:
+	// Check whether it is end of file now.
+	virtual bool checkeof() noexcept;
+
 	/// The buffer storing the fetched content.
-	mutable char readbuf[bufsiz];
+	char readbuf[bufsiz];
 
 	/// The offset of data in the read buffer.
-	mutable size_t readoff;
+	size_t readoff;
 
 	/// The available data length in the read buffer.
-	mutable size_t readlen;
+	size_t readlen;
 
 	/// The current position of the pointer in the file.
-	mutable fileoff_t filetell;
+	fileoff_t filetell;
 };
 
 

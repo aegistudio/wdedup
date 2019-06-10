@@ -73,9 +73,13 @@ void SequentialFileBase::read(char* buf, size_t size) throw (wdedup::Error) {
 		if(currentRead > 0) memcpy(buf, &readbuf[readoff], currentRead);
 		readoff += currentRead; size -= currentRead; buf += currentRead;
 	}
+
+	// Update the tell and eof flag.
+	tell = filetell + readoff;
+	eof = checkeof();
 }
 
-bool SequentialFileBase::eof() const noexcept {
+bool SequentialFileBase::checkeof() noexcept {
 	if(readoff != readlen) return false;
 	ssize_t nextreadlen = ::read(fd, readbuf, bufsiz);
 	// As error will be detected in proceeding read, ignore.
@@ -83,10 +87,6 @@ bool SequentialFileBase::eof() const noexcept {
 	else if(nextreadlen == 0) return true;
 	readoff = 0; filetell += readlen; readlen = (size_t)nextreadlen;
 	return false;
-}
-
-fileoff_t SequentialFileBase::tell() const noexcept {
-	return filetell + readoff;
 }
 
 AppendFileBase::AppendFileBase(

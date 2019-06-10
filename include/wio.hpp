@@ -97,12 +97,17 @@ struct SequentialFile final {
 		/// reached, or file is corrupted (when there's 
 		/// compression).
 		virtual void read(char*, size_t) throw (wdedup::Error) = 0;
+	protected:
+		/// Whether it is EOF currently. Can only be modified
+		/// when Impl::read is invoked.
+		bool eof;
 
-		/// Judege whether it is EOF currently.
-		virtual bool eof() const noexcept = 0;
+		/// Telling current position of the sequential file. Can
+		/// only be modified when Impl::read is invoked.
+		fileoff_t tell;
 
-		/// Telling current position of the sequential file.
-		virtual fileoff_t tell() const noexcept = 0;
+		/// Should befriend the wdedup::SequentialFile.
+		friend class wdedup::SequentialFile;
 	};
 
 	/**
@@ -129,10 +134,10 @@ struct SequentialFile final {
 	}
 
 	/// Delegates the eof interface.
-	inline bool eof() const noexcept { return pimpl->eof(); }
+	inline bool eof() const noexcept { return pimpl->eof; }
 
 	/// Delegates the tell interface.
-	inline fileoff_t tell() const noexcept { return pimpl->tell(); }
+	inline fileoff_t tell() const noexcept { return pimpl->tell; }
 private:
 	/// Pointer to specific implementation of sequential file.
 	std::unique_ptr<SequentialFile::Impl> pimpl;
