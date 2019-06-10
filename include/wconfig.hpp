@@ -24,10 +24,9 @@
  * @author Haoran Luo
  * @brief wdedup Task Configuration Interface
  *
- * This file describes the task information, which will be parsed
- * by each stages of wdedup. The information includes the current
- * temporary working directory, the maximum allowed page size, 
- * whether garbage collection should be performed, etc.
+ * This file describes the task configuration interface, where
+ * command line arguments will be parsed and surrounding resources
+ * will be initialized.
  *
  * Each stage of wdedup will continue on their last persisted 
  * recovery point, owing to the persisted log file. If wdedup
@@ -39,6 +38,7 @@
  */
 #pragma once
 #include <memory>
+#include <tuple>
 #include <string>
 #include "wio.hpp"
 #include "wprofile.hpp"
@@ -89,6 +89,9 @@ struct Config {
 
 	/// Remove specified log file if it already exists.
 	virtual void remove(std::string path) throw (wdedup::Error) = 0;
+
+	/// Retrieve the working memory of the program.
+	virtual std::tuple<void*, size_t> workmem() const noexcept = 0;
 };
 
 } // namespace wdedup

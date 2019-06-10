@@ -34,6 +34,7 @@
 #include "impl/wcli.hpp"
 #include "wtypes.hpp"
 #include <iostream>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -51,6 +52,22 @@ int main(int argc, char** argv) {
 	static const std::string& fileInput = options.origfile;
 	static const std::string& workdir = options.workdir;
 	static std::string logPath = workdir + "/log";
+
+	// Allocate the memory space for executing wprof.
+	size_t userpageSize = 1l * 1024l * 1024l * 1024l; // 1GB.
+	std::shared_ptr<void> userpage([=]() -> void* {
+		void* userpage = mmap(NULL, userpageSize, PROT_READ | PROT_WRITE,
+			MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+		if(userpage == MAP_FAILED) 
+			throw std::runtime_error("Cannot allocate enough memory.");
+		return userpage;
+	}(), [=](void* p) { munmap(p, userpageSize); });
+	std::shared_ptr<void> lockedpage([=]() -> void* {
+		if(mlock(userpage.get(), userpageSize) != 0)
+			throw std::runtime_error("Cannot lock memory page.");
+		return userpage.get();
+	}(), [=](void* p) { munlock(p, userpageSize); });
+	static std::tuple<void*, size_t> wm(userpage.get(), userpageSize);
 
 	// Arguments are parsed, now attempt to initialize and run stages.
 	try {
@@ -137,6 +154,11 @@ int main(int argc, char** argv) {
 			// Remove existing file if it already exists.
 			virtual void remove(std::string path) throw (wdedup::Error) {
 				::remove((workdir + "/" + path).c_str());
+			}
+
+			// Return the working memory for each stage.
+			virtual std::tuple<void*, size_t> workmem() const noexcept {
+				return wm;
 			}
 		} config;
 

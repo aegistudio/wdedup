@@ -29,7 +29,6 @@
  */
 #include "wdedup.hpp"
 #include "impl/wsortdedup.hpp"
-#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -131,22 +130,6 @@ size_t wprof(
 	// produces loggings from current point and in later stages.
 	cfg.recoveryDone();
 
-	// Allocate the memory space for executing wprof.
-	// TODO(haoran.luo): consider it to be done by the caller?
-	size_t userpageSize = 1l * 1024l * 1024l * 1024l; // 1GB.
-	std::shared_ptr<void> userpage([=]() -> void* {
-		void* userpage = mmap(NULL, userpageSize, PROT_READ | PROT_WRITE,
-			MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-		if(userpage == MAP_FAILED) 
-			throw std::runtime_error("Cannot allocate enough memory.");
-		return userpage;
-	}(), [=](void* p) { munmap(p, userpageSize); });
-	std::shared_ptr<void> lockedpage([=]() -> void* {
-		if(mlock(userpage.get(), userpageSize) != 0)
-			throw std::runtime_error("Cannot lock memory page.");
-		return userpage.get();
-	}(), [=](void* p) { munlock(p, userpageSize); });
-
 	// Stat the file to ensure our operations to the file is valid.
 	static const char* role = "original-file";
 	struct stat st; if(stat(path.c_str(), &st) < 0)
@@ -171,7 +154,8 @@ size_t wprof(
 	std::string inputEntry;
 	fileoff_t woffset;
 	while(!iseof || inputEntry != "") {
-		wdedup::SortDedup dedup(userpage.get(), userpageSize);
+		auto wm = cfg.workmem();
+		wdedup::SortDedup dedup(std::get<0>(wm), std::get<1>(wm));
 
 		// Place the remaining entry first.
 		if(inputEntry != "" && !dedup.insert(inputEntry, woffset)) 
