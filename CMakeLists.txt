@@ -54,6 +54,16 @@ else()
   include_directories(${Boost_INCLUDE_DIR})
 endif()
 
+# PkgConfig and LibBsd required for embedded rbtree data structure.
+find_package(PkgConfig REQUIRED)
+if(NOT ${PKGCONFIG_FOUND})
+  message(SEND_ERROR "PkgConfig required for retrieving package config.")
+endif()
+pkg_check_modules(LIBBSD REQUIRED libbsd)
+if(NOT ${LIBBSD_FOUND})
+  message(SEND_ERROR "LibBSD required for defining embedded rbtree structures.")
+endif()
+
 # Configure and use GoogleTest as unit test driver.
 if(WDEDUP_RUNTESTS)
   # Enable CTest provided by CMake.
@@ -87,6 +97,7 @@ add_executable(wdedup "${WDEDUP_SRCPATH}/main.cpp"
                       "${WDEDUP_SRCPATH}/wprof.cpp"
                       "${WDEDUP_SRCPATH}/wmerge.cpp"
                       "${WDEDUP_SRCPATH}/wfindfirst.cpp"
-                      "${WDEDUP_SRCPATH}/wsortdedup.cpp"
+# (Deprecated) #      "${WDEDUP_SRCPATH}/wsortdedup.cpp"
+                      "${WDEDUP_SRCPATH}/wtreededup.cpp"
                       "${WDEDUP_SRCPATH}/wcli.cpp")
 target_link_libraries(wdedup Boost::program_options)

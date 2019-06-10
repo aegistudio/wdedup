@@ -28,13 +28,17 @@
  * for more definition details.
  */
 #include "wdedup.hpp"
-#include "impl/wsortdedup.hpp"
+//#include "impl/wsortdedup.hpp"
+#include "impl/wtreededup.hpp"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
 
 namespace wdedup {
+
+// Current implementation that is used as deduplicator.
+using Dedup = wdedup::TreeDedup;
 
 // Helper for judging whether a character is whitespace.
 inline bool isWhitespace(char c) {
@@ -155,7 +159,7 @@ size_t wprof(
 	fileoff_t woffset;
 	while(!iseof || inputEntry != "") {
 		auto wm = cfg.workmem();
-		wdedup::SortDedup dedup(std::get<0>(wm), std::get<1>(wm));
+		wdedup::Dedup dedup(std::get<0>(wm), std::get<1>(wm));
 
 		// Place the remaining entry first.
 		if(inputEntry != "" && !dedup.insert(inputEntry, woffset)) 
@@ -185,7 +189,7 @@ size_t wprof(
 		// Write the current entries to the underlying file.
 		std::string segmentName = std::to_string(segments);
 		cfg.remove(segmentName);
-		wdedup::SortDedup::pour(std::move(dedup), 
+		wdedup::Dedup::pour(std::move(dedup), 
 			cfg.openOutput(segmentName));
 		cfg.olog() << wdedup::WProfLog::segment << 
 			offset << (prevoff - 1) << wdedup::sync;
