@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
 	static std::string logPath = workdir + "/log";
 
 	// Allocate the memory space for executing wprof.
-	size_t userpageSize = 1l * 1024l * 1024l * 1024l; // 1GB.
+	size_t userpageSize = options.workmem;
 	std::shared_ptr<void> userpage([=]() -> void* {
 		void* userpage = mmap(NULL, userpageSize, PROT_READ | PROT_WRITE,
 			MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
@@ -62,11 +62,14 @@ int main(int argc, char** argv) {
 			throw std::runtime_error("Cannot allocate enough memory.");
 		return userpage;
 	}(), [=](void* p) { munmap(p, userpageSize); });
-	std::shared_ptr<void> lockedpage([=]() -> void* {
-		if(mlock(userpage.get(), userpageSize) != 0)
-			throw std::runtime_error("Cannot lock memory page.");
-		return userpage.get();
-	}(), [=](void* p) { munlock(p, userpageSize); });
+	std::shared_ptr<void> lockedpage;
+	if(options.pagePinned) {
+		lockedpage = std::shared_ptr<void>([=]() -> void* {
+			if(mlock(userpage.get(), userpageSize) != 0)
+				throw std::runtime_error("Cannot lock memory page.");
+			return userpage.get();
+		}(), [=](void* p) { munlock(p, userpageSize); });
+	}
 	static std::tuple<void*, size_t> wm(userpage.get(), userpageSize);
 
 	// Arguments are parsed, now attempt to initialize and run stages.

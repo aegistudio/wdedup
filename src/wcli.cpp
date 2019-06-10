@@ -30,6 +30,7 @@
 #include "impl/wcli.hpp"
 #include <boost/program_options.hpp>
 #include <vector>
+#include <regex>
 #include <string>
 #include <iostream>
 #include <sstream>
@@ -42,6 +43,25 @@ static inline void strsub(std::string& str,
 		str.replace(pos, l.size(), r);
 		pos += r.size();
 	}
+}
+
+// Helper for converting string into memory size.
+static inline size_t strmemsize(std::string str) {
+	std::regex rememsize("(\\d+)([kKmMgGtT]?)[bB]?");
+	std::smatch result; if(std::regex_match(str, result, rememsize)) {
+		std::string num, unit(" ");
+		num = result[1].str();
+		if(result.size() > 2) unit = result[2].str();
+
+		size_t v = std::stoul(num);
+		if(unit.size() > 0) switch(unit[0]) {
+			case 'k': case 'K': return v << 10;
+			case 'm': case 'M': return v << 20;
+			case 'g': case 'G': return v << 30;
+			case 't': case 'T': return v << 40;
+			default: return v;
+		}
+	} else throw std::logic_error("Malformed memory size: \"" + str + "\".");
 }
 
 namespace wdedup {
@@ -144,6 +164,15 @@ int argparse(int argc, char** argv, wdedup::ProgramOptions& options) {
 
 		if(workdir.size() >= 1) options.workdir = workdir[0];
 		else throw std::logic_error("WORKDIR must be specified");
+
+		// Parse the memory size, and make sure it is no less than minWorkmem.
+		options.workmem = strmemsize(vm["memory-size"].as<std::string>());
+		if(options.workmem < wdedup::minWorkmem) {
+			std::stringstream wmerr;
+			wmerr << "At least " << wdedup::minWorkmem 
+				<< " bytes workmem is required.";
+			throw std::logic_error(wmerr.str());
+		}
 	} catch(std::logic_error& e) {
 		std::cerr << "Error: " << e.what() << std::endl;
 		std::cerr << getHelpMessage();

@@ -70,4 +70,7 @@ struct ProgramOptions {
  */
 int argparse(int argc, char** argv, wdedup::ProgramOptions& options);
 
+/// The minimum working memory required to run the program.
+static constexpr size_t minWorkmem = 4096;
+
 } // namespace wdedup
