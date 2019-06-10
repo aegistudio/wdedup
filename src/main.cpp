@@ -167,7 +167,7 @@ int main(int argc, char** argv) {
 			bool shouldThrow = true;
 			// Attempt to create the directory if it does not exists.
 			if(errno == ENOENT) 
-				if(mkdir(workdir.c_str(), S_IRUSR | S_IWUSR) == 0) {
+				if(mkdir(workdir.c_str(), S_IRWXU) == 0) {
 					shouldThrow = false;
 					config.openLogOutput();
 				}
