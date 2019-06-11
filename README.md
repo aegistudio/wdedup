@@ -36,14 +36,14 @@ git clone https://github.com/google/googletest.git
 cd googletest
 mkdir bin
 cd bin
-cmake ...
+cmake ..
 make install # WARNING: 'sudo' might be required
 ```
 
 After fulfilling prerequisites, make this project root directory
 as your current working directory, and executes bash commands:
 
-```
+```bash
 mkdir bin
 cd bin
 cmake .. # Or "cmake -DWDEDUP_RUNTESTS=OFF .." if not running tests.
