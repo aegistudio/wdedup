@@ -64,7 +64,7 @@ struct OriginalFileReader {
 	/// The caller should ensure that the file is exclusive to
 	/// the reader.
 	const char* readString(wdedup::SequentialFile& f,
-		fileoff_t& woffset) throw (wdedup::Error);
+		fileoff_t& woffset, size_t& wlen) throw (wdedup::Error);
 };
 
 static inline void eliminateWhitespace(
@@ -85,8 +85,8 @@ static inline void eliminateWhitespace(
 	}
 }
 
-const char* OriginalFileReader::readString(
-	wdedup::SequentialFile& f, fileoff_t& woffset) throw (wdedup::Error) {
+const char* OriginalFileReader::readString(wdedup::SequentialFile& f, 
+	fileoff_t& woffset, size_t& wlen) throw (wdedup::Error) {
 	// Discard the previous content.
 	{ std::vector<char> empty; std::swap(cache, empty); }
 	if(prevskip > 0) f.bufferskip(prevskip);
@@ -103,6 +103,7 @@ const char* OriginalFileReader::readString(
 		if(isWhitespace(bufptr[i])) {
 			bufptr[i] = '\0';
 			prevskip = i + 1;
+			wlen = i;
 			return bufptr;
 		}
 	}
@@ -119,7 +120,12 @@ const char* OriginalFileReader::readString(
 		}
 
 		// Perform next step of reading.
-		if(f.eof()) break;
+		if(f.eof()) {
+			// Place the string to the s.
+			cache.push_back('\0');
+			wlen = cache.size() - 1;
+			return cache.data();
+		}
 		f.bufferptr(bufptr, bufsize);
 
 		// Find whitespace inside the string.
@@ -130,14 +136,11 @@ const char* OriginalFileReader::readString(
 				cache.resize(cachesize + i + 1);
 				memcpy(&cache[cachesize], bufptr, i + 1);
 				f.bufferskip(i + 1);
+				wlen = cache.size() - 1;
 				return cache.data();
 			}
 		}
 	}
-	
-	// Place the string to the s.
-	cache.push_back('\0');
-	return cache.data();
 }
 
 /**
@@ -239,11 +242,8 @@ size_t wprof(
 		// Read an item from the original file first.
 		while(!iseof) {
 			prevoff = originalFile.tell();
-			inputEntry = reader.readString(originalFile, woffset);
+			inputEntry = reader.readString(originalFile, woffset, inputLength);
 			if(inputEntry != nullptr) {
-				// TODO(haoran.luo): get length while readString.
-				inputLength = strlen(inputEntry); 
-
 				// Place the newly read entry.
 				iseof = false;
 				if(dedup.insert(inputEntry, inputLength, woffset)) 
