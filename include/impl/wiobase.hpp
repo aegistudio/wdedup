@@ -58,6 +58,8 @@ struct SequentialFileBase : public SequentialFile::Impl {
 
 	// Override the pure virtual methods.
 	virtual void read(char*, size_t) throw(wdedup::Error) override;
+	virtual void bufferptr(char*&, size_t&) throw(wdedup::Error) override;
+	virtual void bufferskip(size_t) throw(wdedup::Error) override;
 
 	/// Reference to the error report function.
 	const std::function<void(int)> report;

@@ -28,6 +28,7 @@
  */
 #include "impl/wiobase.hpp"
 #include <cstring>
+#include <cassert>
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -87,6 +88,22 @@ bool SequentialFileBase::checkeof() noexcept {
 	else if(nextreadlen == 0) return true;
 	readoff = 0; filetell += readlen; readlen = (size_t)nextreadlen;
 	return false;
+}
+
+void SequentialFileBase::bufferptr(char*& ptr, size_t& size) throw (wdedup::Error) {
+	if(eof) report(EIO);
+	ptr = &readbuf[readoff];
+	size = readlen - readoff;
+}
+
+void SequentialFileBase::bufferskip(size_t size) throw (wdedup::Error) {
+	if(eof) report(EIO);
+	assert(readoff + size <= readlen);
+	readoff = readoff + size;
+
+	// Update the tell and eof flag.
+	tell = filetell + readoff;
+	eof = checkeof();
 }
 
 AppendFileBase::AppendFileBase(

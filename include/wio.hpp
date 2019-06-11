@@ -41,7 +41,8 @@
 #include <cstddef>
 #include <memory>
 #include <string>
-#include <sstream>
+#include <cstring>
+#include <vector>
 #include "wtypes.hpp"
 
 namespace wdedup {
@@ -97,6 +98,21 @@ struct SequentialFile final {
 		/// reached, or file is corrupted (when there's 
 		/// compression).
 		virtual void read(char*, size_t) throw (wdedup::Error) = 0;
+
+		/// Fetch the underlying buffer pointer from the file.
+		///
+		/// Exception will be thrown if it is currently EOF and
+		/// bufferptr is still called.
+		///
+		/// The call will invalidates previous returned bufferptr. 
+		virtual void bufferptr(char*&, size_t&) throw (wdedup::Error) = 0;
+
+		/// Skip up to size bytes in the file.
+		///
+		/// This call should be used associated with bufferptr.
+		/// The skipping should be less than or equal to the size
+		/// returned by bufferptr.
+		virtual void bufferskip(size_t) throw (wdedup::Error) = 0;
 	protected:
 		/// Whether it is EOF currently. Can only be modified
 		/// when Impl::read is invoked.
@@ -136,6 +152,16 @@ struct SequentialFile final {
 		pimpl->read(buf, siz);
 	}
 
+	/// Delegates the read interface.
+	inline void bufferptr(char*& buf, size_t& siz) throw (wdedup::Error) {
+		pimpl->bufferptr(buf, siz);
+	}
+
+	/// Delegates the skip interface.
+	inline void bufferskip(size_t siz) throw(wdedup::Error) {
+		pimpl->bufferskip(siz);
+	}
+
 	/// Delegates the eof interface.
 	inline bool eof() const noexcept { return pimpl->eof; }
 
@@ -158,19 +184,43 @@ template<typename dataType> inline SequentialFile& operator>>(
 inline SequentialFile& operator>>(
 	SequentialFile& seq, std::string& str
 ) throw (wdedup::Error) {
-	std::stringstream strbld; 
+	char* bufptr = nullptr; size_t bufsiz = 0;
+
+	// Retrieve the starting of bufferptr. This is the
+	// initial buffer pointer chunk, in-place string
+	// creation will be performed when '\0' is found.
+	seq.bufferptr(bufptr, bufsiz);
+	for(size_t i = 0; i < bufsiz; ++ i)
+		if(bufptr[i] == '\0') {
+			// Null found in string, skip and return.
+			std::string result(bufptr);
+			seq.bufferskip(i + 1);
+			str = std::move(result);
+			return seq;
+		}
+	
+	// Null terminator not found in bufferptr, so we
+	// will have to load more buffers.
+	std::vector<char> strbld;
 
 	// Read until '\0' is expected.
 	while(true) {
-		char c;
-		seq.read((char*)&c, 1);
-		if(c) strbld << c;
-		else break;
+		size_t bldsize = strbld.size();
+		memcpy(&strbld[bldsize], bufptr, bufsiz);
+		seq.bufferskip(bufsiz);
+		seq.bufferptr(bufptr, bufsiz);
+		for(size_t i = 0; i < bufsiz; ++ i)
+			if(bufptr[i] == '\0') {
+				// Null found, return now.
+				size_t size = strbld.size();
+				strbld.resize(strbld.size() + i + 1);
+				memcpy(&strbld[size], bufptr, i + 1);
+				std::string result(strbld.data());
+				seq.bufferskip(i + 1);
+				str = std::move(result);
+				return seq;
+			}
 	}
-
-	/// Return the string and break.
-	str = std::move(strbld.str());
-	return seq;
 }
 
 /**
@@ -201,7 +251,7 @@ struct AppendFile final {
 	protected:
 		/// Telling current position of the append file. Can only be 
 		/// modified when Impl::write and Impl::sync is invoked.
-		fileoff_t tell;
+		wdedup::fileoff_t tell;
 
 		/// Initialize the fields for children.
 		Impl() noexcept: tell(0) {}
