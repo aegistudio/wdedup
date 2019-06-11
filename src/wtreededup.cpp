@@ -56,12 +56,12 @@ TreeDedup::TreeDedup(TreeDedup&& rhs) noexcept:
 	rhs.root.rbh_root = nullptr;
 }
 
-bool TreeDedup::insert(const std::string& word, fileoff_t offset) noexcept {
-	if(word.size() == 0) return false; // Invalid word specified.
+bool TreeDedup::insert(const char* word, size_t len, fileoff_t offset) noexcept {
+	if(len == 0) return false; // Invalid word specified.
 
 	// Profile the word.
 	Bloom bloomed;
-	size_t allocpool = bloomed.decompose(word);
+	size_t allocpool = bloomed.decompose(word, len);
 
 	// Test whether the item already exists in the tree.
 	{

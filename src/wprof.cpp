@@ -46,34 +46,101 @@ inline bool isWhitespace(char c) {
 	return c == ' ' || c == '\t' || c == '\n' || c == '\r';
 }
 
-/**
- * Simulation for std::fstream >> std::string. While returned, the
- * pointer must sit on EOF or an empty character.
- */
-static bool readString(wdedup::SequentialFile& f, 
-	std::string& s, fileoff_t& woffset) throw (wdedup::Error) {
-	char c;
+/// Performs operations related to the original file.
+struct OriginalFileReader {
+	/// Caching previously read data, if the data is really
+	/// too long. This helps reducing number of alloc calls.
+	std::vector<char> cache;
+	
+	/// Length of previous string to skip.
+	size_t prevskip;
+
+	/// Constructor for the file reader.
+	OriginalFileReader(): cache(), prevskip(0) {}
+
+	/// Read a string from the reader. The returned pointer is
+	/// available until next invocation to readString.
+	///
+	/// The caller should ensure that the file is exclusive to
+	/// the reader.
+	const char* readString(wdedup::SequentialFile& f,
+		fileoff_t& woffset, size_t& wlen) throw (wdedup::Error);
+};
+
+static inline void eliminateWhitespace(
+	wdedup::SequentialFile& f) throw (wdedup::Error) {
 
 	// White space elimination.
+	char* bufptr = nullptr; size_t bufsize = 0;
 	while(true) {
-		if(f.eof()) return false;
-		f >> c; if(!isWhitespace(c)) break;
+		if(f.eof()) return;
+		f.bufferptr(bufptr, bufsize);
+		for(size_t i = 0; i < bufsize; ++ i) {
+			if(!isWhitespace(bufptr[i])) {
+				if(i > 0) f.bufferskip(i);
+				return;
+			}
+		}
+		f.bufferskip(bufsize);
 	}
-	woffset = f.tell() - 1;
+}
 
-	// Word generation.
-	std::vector<char> sbuild; sbuild.reserve(8);
-	do {
-		sbuild.push_back(c);
-		if(f.eof()) break;
-		f >> c;
-		if(isWhitespace(c)) break;
-	} while(true);
+const char* OriginalFileReader::readString(wdedup::SequentialFile& f, 
+	fileoff_t& woffset, size_t& wlen) throw (wdedup::Error) {
+	// Discard the previous content.
+	{ std::vector<char> empty; std::swap(cache, empty); }
+	if(prevskip > 0) f.bufferskip(prevskip);
+	eliminateWhitespace(f);
 
-	// Place the string to the s.
-	sbuild.push_back('\0');
-	s = std::string(sbuild.data());
-	return true;
+	// Commonly used buffer variable.
+	char* bufptr = nullptr; size_t bufsize = 0;
+	if(f.eof()) return nullptr;
+	woffset = f.tell();
+
+	// Perform in-place replacing when the word is short enough.
+	f.bufferptr(bufptr, bufsize);
+	for(size_t i = 0; i < bufsize; ++ i) {
+		if(isWhitespace(bufptr[i])) {
+			bufptr[i] = '\0';
+			prevskip = i + 1;
+			wlen = i;
+			return bufptr;
+		}
+	}
+
+	// The word seems to be too long, so perform caching.
+	prevskip = 0;
+	while(true) {
+		// Place previous content into the cache.
+		{
+			size_t cachesize = cache.size();
+			cache.resize(cachesize + bufsize);
+			memcpy(&cache[cachesize], bufptr, bufsize);
+			f.bufferskip(bufsize);
+		}
+
+		// Perform next step of reading.
+		if(f.eof()) {
+			// Place the string to the s.
+			cache.push_back('\0');
+			wlen = cache.size() - 1;
+			return cache.data();
+		}
+		f.bufferptr(bufptr, bufsize);
+
+		// Find whitespace inside the string.
+		for(size_t i = 0; i < bufsize; ++ i) {
+			if(isWhitespace(bufptr[i])) {
+				bufptr[i] = '\0';
+				size_t cachesize = cache.size();
+				cache.resize(cachesize + i + 1);
+				memcpy(&cache[cachesize], bufptr, i + 1);
+				f.bufferskip(i + 1);
+				wlen = cache.size() - 1;
+				return cache.data();
+			}
+		}
+	}
 }
 
 /**
@@ -154,19 +221,20 @@ size_t wprof(
 	wdedup::FileMode originalMode;
 	originalMode.seekset = offset;
 	wdedup::SequentialFile originalFile(path, role, originalMode);
+	wdedup::OriginalFileReader reader;
 
 	// Loop reading the files. And writing out the content.
 	bool iseof = false;  
-	std::string inputEntry;
+	const char* inputEntry = nullptr; size_t inputLength = 0;
 	fileoff_t woffset;
-	while(!iseof || inputEntry != "") {
+	while(!iseof || inputEntry != nullptr) {
 		auto wm = cfg.workmem();
 		wdedup::Dedup dedup(std::get<0>(wm), std::get<1>(wm));
 
 		// Place the remaining entry first.
-		if(inputEntry != "" && !dedup.insert(inputEntry, woffset)) 
+		if(inputEntry != nullptr) if(!dedup.insert(inputEntry, inputLength, woffset)) 
 			throw std::logic_error("Insufficient working memory.");
-		inputEntry = "";
+		inputEntry = nullptr;
 
 		// Recorded in order to mark milestone when dedup.insert failed.
 		fileoff_t prevoff;
@@ -174,16 +242,16 @@ size_t wprof(
 		// Read an item from the original file first.
 		while(!iseof) {
 			prevoff = originalFile.tell();
-			if(readString(originalFile, inputEntry, woffset)) {
+			inputEntry = reader.readString(originalFile, woffset, inputLength);
+			if(inputEntry != nullptr) {
 				// Place the newly read entry.
 				iseof = false;
-				if(dedup.insert(inputEntry, woffset)) 
-					inputEntry = "";
+				if(dedup.insert(inputEntry, inputLength, woffset)) 
+					inputEntry = nullptr;
 				else break;
 			}
 			else {
 				prevoff = originalFile.tell();
-				inputEntry = "";
 				iseof = true;
 			}
 		}

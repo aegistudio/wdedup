@@ -43,12 +43,12 @@ SortDedup::SortDedup(void* vmaddr, size_t vmsize) noexcept:
 SortDedup::SortDedup(SortDedup&& rhs) noexcept:
 	wmman(std::move(rhs.wmman)) {}
 
-bool SortDedup::insert(const std::string& word, fileoff_t offset) noexcept {
-	if(word.size() == 0) return false; // Invalid word specified.
+bool SortDedup::insert(const char* word, size_t len, fileoff_t offset) noexcept {
+	if(len == 0) return false; // Invalid word specified.
 
 	// Profile the word.
 	Bloom bloomed;
-	size_t allocpool = bloomed.decompose(word);
+	size_t allocpool = bloomed.decompose(word, len);
 
 	// Allocate new portion of memory.
 	SortDedupItem* newitem = nullptr;

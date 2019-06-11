@@ -65,26 +65,22 @@ struct Bloom final {
 	Bloom(const Bloom& b) noexcept: bloom(b.bloom), pool(b.pool) {}
 
 	/**
-	 * @brief Decompose a string into Bloom-ed string.
-	 *
-	 * The pool part will based on word.c_str(). And the length of 
-	 * the pool part will be returned.
-	 *
-	 * @param[in] word the string to be decomposed.
+	 * @brief Decompose a C-string into Bloom-ed string.
+	 * @param[in] word the C-string to be decomposed.
 	 * @return the length of the bloomed part.
 	 */
-	inline size_t decompose(const std::string& word) noexcept {
+	inline size_t decompose(const char* word, size_t wordsize) noexcept {
 		// Profile the word.
 		bloom = (bloom_t)0; pool = nullptr;
 		size_t n = 0; for(; n < sizeof(bloom_t); ++ n) {
-			char w = n < word.size()? word[n] : 0;
+			char w = n < wordsize? word[n] : 0;
 			bloom = (bloom_t)((bloom << 8) | (w & 0x0ffl));
 		}
-		size_t allocpool = 0; if(n < word.size()) {
+		size_t allocpool = 0; if(n < wordsize) {
 			// If allocation is inevitable, the allocated 
 			// string must be null terminated, so the size 
 			/// must plus one.
-			allocpool = word.size() - n + 1;
+			allocpool = wordsize - n + 1;
 			pool = &word[n];
 		}
 		return allocpool;
