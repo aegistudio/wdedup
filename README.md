@@ -5,6 +5,58 @@ This tool finds the first non-repeating word in a large file
 can alter some of the stages for customizing it into your
 functions, like finding the first N-words, etc.
 
+## Project Building
+
+To build the project, you needs to make sure these prerequisites
+(tools or libraries) are installed:
+
+```
+GCC (G++)                     (C++ build tools)
+CMake >= 3.5                  (C++ build framework)
+GNU Make                      (Project build tool)
+PkgConfig                     (Library configuration tool)
+GoogleTest (optional)         (C++ test framework)
+Boost.ProgramOptions          (CLI parser library)
+LibBSD                        (Provider of embedded Rbtree)
+```
+
+Under ubuntu, you can install the prerequisites (except for
+GoogleTest) by executing bash command:
+
+```bash
+sudo apt install build-essential cmake pkg-config \
+                 libboost-program-options-dev libbsd-dev
+```
+
+GoogleTest can be build and installed manually by executing (you
+can skip this step if you don't want to run test cases):
+
+```bash
+git clone https://github.com/google/googletest.git
+cd googletest
+mkdir bin
+cd bin
+cmake ...
+make install # WARNING: 'sudo' might be required
+```
+
+After fulfilling prerequisites, make this project root directory
+as your current working directory, and executes bash commands:
+
+```
+mkdir bin
+cd bin
+cmake .. # Or "cmake -DWDEDUP_RUNTESTS=OFF .." if not running tests.
+make
+```
+
+And if the project is success to build, an executable named 
+`wdedup` will be placed under the `bin` directory. By running 
+`wdedup -h` will you see its command line usage.
+
+To run test cases, having GoogleTest installed and 
+`WDEDUP_RUNTESTS` set to `ON`, run `make test` or `ctest`.
+
 ## Basic Approaches
 
 Word deduplication for large file problem can be solved via
