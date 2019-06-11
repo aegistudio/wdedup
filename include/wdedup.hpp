@@ -44,6 +44,8 @@ namespace wdedup {
  *
  * @param[inout] cfg the configuration of current task.
  * @param[in] path the original file path.
+ * @param[in] syncDistance the synchronization distance, set to
+ * 0 means to disable such synchronization.
  * @return the maximum id of the output file. The file may be 
  * missing if later stage removes these file (via GC), and wprof 
  * will not verify that if ilog indicates this stage has been 
@@ -51,8 +53,8 @@ namespace wdedup {
  * @throw wdedup::Error when specified original file is missing,
  * cannot create file under working directory, etc.
  */
-size_t wprof(wdedup::Config& cfg, const std::string& path) 
-		throw (wdedup::Error);
+size_t wprof(wdedup::Config& cfg, const std::string& path, 
+	size_t syncDistance = 0) throw (wdedup::Error);
 
 /**
  * @brief Executes the merge stage on the original file.

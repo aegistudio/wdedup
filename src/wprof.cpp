@@ -166,9 +166,9 @@ enum class WProfLog : char {
 	end = 'e'
 };
 
-size_t wprof(
-	wdedup::Config& cfg, const std::string& path
-) throw (wdedup::Error) {
+size_t wprof(wdedup::Config& cfg, const std::string& path, 
+	size_t syncDistance) throw (wdedup::Error) {
+
 	// The control counters for wprof routine.
 	size_t segments = 0;
 	fileoff_t offset = 0;
@@ -242,6 +242,12 @@ size_t wprof(
 		// Read an item from the original file first.
 		while(!iseof) {
 			prevoff = originalFile.tell();
+
+			// Check whether string based synchronization will be performed.
+			if(syncDistance > 0)
+				if(prevoff - offset > syncDistance) break;
+
+			// Retrieve current string item from original file.
 			inputEntry = reader.readString(originalFile, woffset, inputLength);
 			if(inputEntry != nullptr) {
 				// Place the newly read entry.

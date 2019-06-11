@@ -46,8 +46,8 @@ static inline void strsub(std::string& str,
 }
 
 // Helper for converting string into memory size.
-static inline size_t strmemsize(std::string str) {
-	std::regex rememsize("(\\d+)([kKmMgGtT]?)[bB]?");
+static inline size_t strsize(std::string str) {
+	std::regex rememsize("(\\d+)([kKmMgGtT])?[bB]?");
 	std::smatch result; if(std::regex_match(str, result, rememsize)) {
 		std::string num, unit(" ");
 		num = result[1].str();
@@ -59,8 +59,8 @@ static inline size_t strmemsize(std::string str) {
 			case 'm': case 'M': return v << 20;
 			case 'g': case 'G': return v << 30;
 			case 't': case 'T': return v << 40;
-			default: return v;
 		}
+		return v;
 	} else throw std::logic_error("Malformed memory size: \"" + str + "\".");
 }
 
@@ -105,7 +105,11 @@ int argparse(int argc, char** argv, wdedup::ProgramOptions& options) {
 			"starts and record its working data into the memory.")
 		("page-pinned,p", po::bool_switch(&options.pagePinned),
 			"Configure whether the working memory should be page "
-			"pinned (not swapped out and resides in RAM).");
+			"pinned (not swapped out and resides in RAM).")
+		("sync-distance,d", po::value<std::string>()->default_value("2g"),
+			"Configure how many bytes (from original file) would "
+			"be processed before a synchronization will be performed. "
+			"When set to 0, such synchronization will be disabled.");
 
 	// Initialize debug flags (used for debugging purpose).
 	po::options_description debugs("Debug Flags");
@@ -166,11 +170,22 @@ int argparse(int argc, char** argv, wdedup::ProgramOptions& options) {
 		else throw std::logic_error("WORKDIR must be specified");
 
 		// Parse the memory size, and make sure it is no less than minWorkmem.
-		options.workmem = strmemsize(vm["memory-size"].as<std::string>());
-		if(options.workmem < wdedup::minWorkmem) {
+		options.workmem = strsize(vm["memory-size"].as<std::string>());
+		if(options.workmem < strsize(wdedup::minWorkmem)) {
 			std::stringstream wmerr;
 			wmerr << "At least " << wdedup::minWorkmem 
-				<< " bytes workmem is required.";
+				<< " workmem is required.";
+			throw std::logic_error(wmerr.str());
+		}
+
+		// Parse the synchronization distance, and make sure it is no less 
+		// than minSyncDistance.
+		options.syncDistance = strsize(vm["sync-distance"].as<std::string>());
+		if(options.syncDistance != 0 && options.syncDistance < 
+			strsize(wdedup::minSyncDistance)) {
+			std::stringstream wmerr;
+			wmerr << "Synchronization distance (if enabled) is no "
+				"less than " << wdedup::minSyncDistance << ".";
 			throw std::logic_error(wmerr.str());
 		}
 	} catch(std::logic_error& e) {

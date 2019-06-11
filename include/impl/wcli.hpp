@@ -47,6 +47,11 @@ struct ProgramOptions {
 	/// The size of working memory, in unit of bytes.
 	size_t workmem;
 
+	/// The size of synchronization distance, in unit of bytes.
+	/// When it is 0, meaning such synchronization distance will 
+	/// not be taken into consideration.
+	size_t syncDistance;
+
 	/// Whether the working memory will be page pinned.
 	bool pagePinned;
 
@@ -71,6 +76,9 @@ struct ProgramOptions {
 int argparse(int argc, char** argv, wdedup::ProgramOptions& options);
 
 /// The minimum working memory required to run the program.
-static constexpr size_t minWorkmem = 4096;
+static const char* minWorkmem = "4096B";
+
+/// The minimum milestone distance can be used to run the program.
+static const char* minSyncDistance = "512MB";
 
 } // namespace wdedup
