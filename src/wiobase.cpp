@@ -100,7 +100,7 @@ AppendFileBase::AppendFileBase(
 	// Learning about the current location of the file.
 	off64_t offset = lseek64(fd, 0, SEEK_CUR);
 	if(offset == (off64_t)(-1)) report(errno);
-	filetell = offset;
+	tell = offset;
 }
 
 AppendFileBase::~AppendFileBase() noexcept {
@@ -130,7 +130,7 @@ void AppendFileLog::sync() throw (wdedup::Error) {
 
 	// We use actual size here, as logs without synchronization will never be
 	// written out as is assumed.
-	filetell += writebufsiz;
+	tell += writebufsiz;
 }
 
 AppendFileBuffer::AppendFileBuffer(
@@ -154,7 +154,7 @@ void AppendFileBuffer::write(const char* buf, size_t size) throw (wdedup::Error)
 
 	// We use estimated size here, as we would always like to know about the 
 	// final size after persisting all these data.
-	filetell += size;
+	tell += size;
 }
 
 void AppendFileBuffer::sync() throw (wdedup::Error) {

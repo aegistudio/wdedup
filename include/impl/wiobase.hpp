@@ -88,11 +88,7 @@ private:
  * The implementation handles the creation and basic operations for writing
  * such file. Just like the SequentialFileBase counter part.
  */
-class AppendFileBase : public AppendFile::Impl {
-protected:
-	/// The current file tell of the output file.
-	fileoff_t filetell;
-public:
+struct AppendFileBase : public AppendFile::Impl {
 	/// @brief Open or create a file under the given path.
 	AppendFileBase(const char*, std::function<void(int)>) throw (wdedup::Error);
 
@@ -104,9 +100,6 @@ public:
 
 	/// No synchronization for such file, and no delegating as it is the base.
 	virtual void sync() throw(wdedup::Error) override {}
-
-	/// The telling method is waiting for its children to implement.
-	virtual fileoff_t tell() const noexcept { return filetell; }
 
 	/// Reference to the error report function.
 	const std::function<void(int)> report;

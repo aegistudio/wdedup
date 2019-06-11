@@ -198,10 +198,16 @@ struct AppendFile final {
 		/// Flush current cached chunk of file.
 		/// @throw wdedup::Error when I/O error occurs.
 		virtual void sync() throw (wdedup::Error) = 0;
+	protected:
+		/// Telling current position of the append file. Can only be 
+		/// modified when Impl::write and Impl::sync is invoked.
+		fileoff_t tell;
 
-		/// Return the currently estimated file size (the file
-		/// size if all data has been written to the file).
-		virtual fileoff_t tell() const noexcept = 0;
+		/// Initialize the fields for children.
+		Impl() noexcept: tell(0) {}
+
+		/// Should befriend the wdedup::AppendFile.
+		friend class wdedup::AppendFile;
 	};
 
 	/**
@@ -231,7 +237,7 @@ struct AppendFile final {
 	}
 
 	/// Delegates the size interface.
-	inline fileoff_t tell() const noexcept { return pimpl->tell(); }
+	inline fileoff_t tell() const noexcept { return pimpl->tell; }
 
 	/// Delegates the sync interface.
 	inline void sync() throw(wdedup::Error) { pimpl->sync(); }
