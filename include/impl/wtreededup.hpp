@@ -86,12 +86,13 @@ struct TreeDedup final {
 	 * Insert a word into the dedup pool.
 	 *
 	 * @param[in] word the word to be appended.
+	 * @param[in] len the length of the word.
 	 * @param[in] offset the offset of the word in document.
 	 * @return true if the dedup has appended the word, false
 	 *         if it cannot be appended, false will be returned,
 	 *         and the object remains unchanged.
 	 */
-	bool insert(const std::string& word, fileoff_t offset) noexcept;
+	bool insert(const char* word, size_t len, fileoff_t offset) noexcept;
 
 	/// Pour the content of SortDedup into an open file.
 	/// The pool will be then inaccessible, no matter success

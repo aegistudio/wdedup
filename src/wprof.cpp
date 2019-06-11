@@ -222,16 +222,16 @@ size_t wprof(
 
 	// Loop reading the files. And writing out the content.
 	bool iseof = false;  
-	std::string inputEntry;
+	const char* inputEntry = nullptr; size_t inputLength = 0;
 	fileoff_t woffset;
-	while(!iseof || inputEntry != "") {
+	while(!iseof || inputEntry != nullptr) {
 		auto wm = cfg.workmem();
 		wdedup::Dedup dedup(std::get<0>(wm), std::get<1>(wm));
 
 		// Place the remaining entry first.
-		if(inputEntry != "" && !dedup.insert(inputEntry, woffset)) 
+		if(inputEntry != nullptr) if(!dedup.insert(inputEntry, inputLength, woffset)) 
 			throw std::logic_error("Insufficient working memory.");
-		inputEntry = "";
+		inputEntry = nullptr;
 
 		// Recorded in order to mark milestone when dedup.insert failed.
 		fileoff_t prevoff;
@@ -239,19 +239,19 @@ size_t wprof(
 		// Read an item from the original file first.
 		while(!iseof) {
 			prevoff = originalFile.tell();
-			const char* inputString;
-			if((inputString = reader.readString(originalFile, woffset)) != nullptr) {
-				inputEntry = inputString;
+			inputEntry = reader.readString(originalFile, woffset);
+			if(inputEntry != nullptr) {
+				// TODO(haoran.luo): get length while readString.
+				inputLength = strlen(inputEntry); 
 
 				// Place the newly read entry.
 				iseof = false;
-				if(dedup.insert(inputEntry, woffset)) 
-					inputEntry = "";
+				if(dedup.insert(inputEntry, inputLength, woffset)) 
+					inputEntry = nullptr;
 				else break;
 			}
 			else {
 				prevoff = originalFile.tell();
-				inputEntry = "";
 				iseof = true;
 			}
 		}
