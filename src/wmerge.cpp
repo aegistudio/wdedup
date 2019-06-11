@@ -70,7 +70,7 @@ enum class WMergeLog : char {
 };
 
 size_t wmerge(
-	wdedup::Config& cfg, size_t leaves
+	wdedup::Config& cfg, size_t leaves, bool disableGC
 ) throw (wdedup::Error) {
 	// Eliminate corner conditions.
 	if(leaves == 0) cfg.logCorrupt();
@@ -155,8 +155,10 @@ size_t wmerge(
 			++ cursor;
 
 			// Garbage collect merged nodes.
-			cfg.remove(std::to_string(left));
-			cfg.remove(std::to_string(right));
+			if(!disableGC) {
+				cfg.remove(std::to_string(left));
+				cfg.remove(std::to_string(right));
+			}
 			break;
 		default:
 			// Report corruption for unknown log item type.
@@ -204,8 +206,10 @@ size_t wmerge(
 			current.left << current.right << current.out << wdedup::sync;
 		
 		// Perform garbage collection.
-		cfg.remove(std::to_string(current.left));
-		cfg.remove(std::to_string(current.right));
+		if(!disableGC) {
+			cfg.remove(std::to_string(current.left));
+			cfg.remove(std::to_string(current.right));
+		}
 	}
 
 	// Return the single node of current layer.
