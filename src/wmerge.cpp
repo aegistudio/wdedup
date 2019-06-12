@@ -70,8 +70,8 @@ size_t wmerge(
 			return plan.id;
 		case (char)wdedup::WMergeLog::merge:
 			// Parse the segment parameters.
-			size_t left, right, out;
-			cfg.ilog() >> left >> right >> out;
+			size_t left, right, out, size;
+			cfg.ilog() >> left >> right >> out >> size;
 
 			// If the logged item does not match the 
 			// working items, report errors.
@@ -89,7 +89,7 @@ size_t wmerge(
 			// Place back the merged node.
 			wdedup::MergeSegment merged;
 			merged.plan = plan;
-			merged.size = 0;	// TODO(haoran.luo): fetch size data.
+			merged.size = size;
 			planner.push(merged);
 
 			break; // switch.
@@ -130,11 +130,12 @@ size_t wmerge(
 		// Finish up the left one by pushing.
 		while(!left->empty()) out->push(std::move(left->pop()));
 		while(!right->empty()) out->push(std::move(right->pop()));
-		out->close();
+		size_t size = out->close();
 
 		// Write out the persistent finished log.
-		cfg.olog() << wdedup::WMergeLog::merge << 
-			plan.left << plan.right << plan.id << wdedup::sync;
+		cfg.olog() << wdedup::WMergeLog::merge 
+			<< plan.left << plan.right << plan.id 
+			<< size << wdedup::sync;
 		
 		// Perform garbage collection.
 		if(!disableGC) {
@@ -145,7 +146,7 @@ size_t wmerge(
 		// Place back the merged node.
 		wdedup::MergeSegment merged;
 		merged.plan = plan;
-		merged.size = 0;	// TODO(haoran.luo): sample size.
+		merged.size = size;
 		planner.push(merged);
 	}
 

@@ -91,7 +91,7 @@ public:
 	virtual void push(ProfileItem) throw (wdedup::Error) override;
 
 	/// Indicates that this is the end of profile output.
-	virtual void close() throw (wdedup::Error) override;
+	virtual size_t close() throw (wdedup::Error) override;
 };
 
 } // namespace wdedup

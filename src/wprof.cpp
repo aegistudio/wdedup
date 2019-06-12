@@ -186,8 +186,8 @@ wprof(wdedup::Config& cfg, const std::string& path,
 			return std::move(result);
 		case (char)wdedup::WProfLog::segment:
 			// Parse the segment parameters.
-			fileoff_t start, end;
-			cfg.ilog() >> start >> end;
+			fileoff_t start, end, size;
+			cfg.ilog() >> start >> end >> size;
 
 			// If the segment start does not matches the 
 			// end of previous segment, report corruption.
@@ -199,7 +199,7 @@ wprof(wdedup::Config& cfg, const std::string& path,
 			segment.id = segments;
 			segment.start = start;
 			segment.end = end;
-			segment.size = 0; // TODO(haoran.luo): parse size.
+			segment.size = size;
 			result.push_back(segment);
 
 			// Advance to next segment.
@@ -277,18 +277,18 @@ wprof(wdedup::Config& cfg, const std::string& path,
 		// Write the current entries to the underlying file.
 		std::string segmentName = std::to_string(segments);
 		cfg.remove(segmentName);
-		wdedup::Dedup::pour(std::move(dedup), 
+		size_t size = wdedup::Dedup::pour(std::move(dedup), 
 			cfg.openOutput(segmentName));
 		size_t start = offset, end = prevoff - 1;
 		cfg.olog() << wdedup::WProfLog::segment << 
-			start << end << wdedup::sync;
+			start << end << size << wdedup::sync;
 
 		// Place the segments out.
 		wdedup::ProfileSegment segment;
 		segment.id = segments;
 		segment.start = start;
 		segment.end = end;
-		segment.size = 0; // TODO(haoran.luo): fetch size.
+		segment.size = size;
 		result.push_back(segment);
 
 		// Advance to next segment.

@@ -95,7 +95,7 @@ bool TreeDedup::insert(const char* word, size_t len, fileoff_t offset) noexcept 
 	return true;
 }
 
-void TreeDedup::pour(
+size_t TreeDedup::pour(
 	TreeDedup dedup, std::unique_ptr<wdedup::ProfileOutput> output
 ) throw (wdedup::Error) {
 	assert(output != nullptr);
@@ -107,7 +107,7 @@ void TreeDedup::pour(
 		if(it->occur == 0) output->push(ProfileItem(word));
 		else output->push(ProfileItem(word, it->occur - 1));
 	}
-	output->close();
+	return output->close();
 }
 
 } // namespace wdedup

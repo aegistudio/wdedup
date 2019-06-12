@@ -155,7 +155,8 @@ AppendFileBuffer::AppendFileBuffer(
 ) throw (wdedup::Error): AppendFileBase(path, report), writelen(0) {
 }
 
-void AppendFileBuffer::write(const char* buf, size_t size) throw (wdedup::Error) {
+void AppendFileBuffer::write(const char* buf, size_t insize) throw (wdedup::Error) {
+	size_t size = insize;
 	while(size > 0) {
 		// Flushes the previous buffer.
 		if(writelen == bufsiz) {
@@ -168,10 +169,7 @@ void AppendFileBuffer::write(const char* buf, size_t size) throw (wdedup::Error)
 		memcpy(&writebuf[writelen], buf, currentsiz);
 		buf += currentsiz; size -= currentsiz; writelen += currentsiz;
 	}
-
-	// We use estimated size here, as we would always like to know about the 
-	// final size after persisting all these data.
-	tell += size;
+	tell += insize;
 }
 
 void AppendFileBuffer::sync() throw (wdedup::Error) {
