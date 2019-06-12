@@ -76,7 +76,7 @@ MergePlannerDP::MergePlannerDP(wdedup::Config& config,
 
 	// The cost calculation function.
 	auto costFunc = [](const dpItem& l, const dpItem& r) -> size_t {
-		return (l.length + r.length) * 2;
+		return l.cost + r.cost + (l.length + r.length) * 2;
 	};
 
 	// Calculate the cost and the separation.
@@ -86,9 +86,10 @@ MergePlannerDP::MergePlannerDP(wdedup::Config& config,
 			dp[j][m].cost = costFunc(dp[j][j], dp[j + 1][m]);
 			dp[j][m].length = dp[j][j].length + dp[j + 1][m].length;
 			dp[j][m].separation = j;
-			for(size_t k = j + 1; k + 1 <= j + l; ++ k) {
+			dp[j][m].id = 0;
+			for(size_t k = j + 1; k + 1 <= m; ++ k) {
 				// [j,k] and [k+1, j+l].
-				size_t newcost = costFunc(dp[j][k], dp[k + 1][j + l]);
+				size_t newcost = costFunc(dp[j][k], dp[k + 1][m]);
 				if(newcost < dp[j][m].cost) {
 					dp[j][m].cost = newcost;
 					dp[j][m].separation = k;
