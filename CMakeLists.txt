@@ -96,8 +96,11 @@ add_executable(wdedup "${WDEDUP_SRCPATH}/main.cpp"
                       "${WDEDUP_SRCPATH}/wpflfilter.cpp"
                       "${WDEDUP_SRCPATH}/wprof.cpp"
                       "${WDEDUP_SRCPATH}/wmerge.cpp"
+# (Obsoleted) #       "${WDEDUP_SRCPATH}/wmpsimple.cpp"
+                      "${WDEDUP_SRCPATH}/wmpdp.cpp"
+                      "${WDEDUP_SRCPATH}/wmpsimple.cpp"
                       "${WDEDUP_SRCPATH}/wfindfirst.cpp"
-# (Deprecated) #      "${WDEDUP_SRCPATH}/wsortdedup.cpp"
+# (Obsoleted) #       "${WDEDUP_SRCPATH}/wsortdedup.cpp"
                       "${WDEDUP_SRCPATH}/wtreededup.cpp"
                       "${WDEDUP_SRCPATH}/wcli.cpp")
 target_link_libraries(wdedup Boost::program_options)

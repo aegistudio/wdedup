@@ -93,7 +93,7 @@ struct SortDedup final {
 	/// or fail while pouring.
 	/// Both pool and profile output will be automatically destroyed 
 	/// once after the operation is done.
-	static void pour(SortDedup, std::unique_ptr<wdedup::ProfileOutput>) 
+	static size_t pour(SortDedup, std::unique_ptr<wdedup::ProfileOutput>) 
 			throw (wdedup::Error);
 private:
 	/// The working memory manager used to allocate objects.

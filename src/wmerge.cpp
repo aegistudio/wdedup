@@ -34,24 +34,6 @@
 namespace wdedup {
 
 /**
- * @brief Indicates the execution plan of merging stage.
- */
-struct WMergePlan {
-	/// Left node to be merged.
-	size_t left;
-
-	/// Right node to be merged.
-	size_t right;
-
-	/// Output node of this merging stage.
-	size_t out;
-
-	/// Default constructor for the merge plan.
-	WMergePlan(size_t left, size_t right, size_t out) noexcept:
-		left(left), right(right), out(out) {}
-};
-
-/**
  * @brief Indicates the type of current log item.
  *
  * Giving wmerge log items type makes it easier to determine the
@@ -70,69 +52,13 @@ enum class WMergeLog : char {
 };
 
 size_t wmerge(
-	wdedup::Config& cfg, size_t leaves, bool disableGC
+	wdedup::Config& cfg, wdedup::MergePlanner& planner, bool disableGC
 ) throw (wdedup::Error) {
-	// Eliminate corner conditions.
-	if(leaves == 0) cfg.logCorrupt();
-	if(leaves == 1) return 0;
-
-	// Generate merging plans, the last item will be the final result.
-	std::vector<wdedup::WMergePlan> plans;
-	{
-		// The queues recording the remaining nodes in the queue.
-		// The value of nodes will be index+1 so that 0 can be used
-		// as layer separator.
-		std::queue<size_t> nodes;
-
-		// The newly generated merged profile index.
-		size_t put = leaves;
-
-		// Push initial nodes (leaf nodes).
-		for(size_t i = 0; i < leaves; i ++)
-			nodes.push(i + 1);
-		nodes.push(0);
-
-		// Deduce nodes of every layers.
-		size_t layerNodes = 0;
-		while(true) {
-			bool endLayer = false;
-			size_t left, right;
-
-			// Fetch the left node to be merged.
-			if(!endLayer) {
-				left = nodes.front(); nodes.pop();
-				if(left == 0) endLayer = true;
-				else ++ layerNodes;
-			}
-
-			// Fetch the right node to be merged.
-			if(!endLayer) {
-				right = nodes.front(); nodes.pop();
-				if(right == 0) endLayer = true;
-				else ++ layerNodes;
-			}
-
-			// Test whether it is the end of current layer.
-			if(endLayer) {
-				assert(layerNodes > 0);
-				if(layerNodes == 1) break; // Single node.
-
-				// Push back and continue.
-				if(left != 0) nodes.push(left);
-				layerNodes = 0; nodes.push(0); 
-				continue; 
-			}
-
-			// Write out current node.
-			plans.push_back(WMergePlan(left - 1, right - 1, put));
-			nodes.push(put + 1); ++ put;
-		}
-	}
+	wdedup::MergePlan plan;
 
 	// Attempt to recover log and remove processed nodes.
 	// Currently the removed nodes must match the order of
 	// dequeued node.
-	size_t cursor = 0;
 	if(!cfg.hasRecoveryDone()) while(!(cfg.ilog().eof())) {
 		// Parse the current line of log.
 		char type; cfg.ilog() >> type;
@@ -140,26 +66,33 @@ size_t wmerge(
 		case (char)wdedup::WMergeLog::end:
 			// Indicates this is the end of current log
 			// and wprof stage has been completed.
-			if(cursor != plans.size()) cfg.logCorrupt();
-			return plans[plans.size() - 1].out;
+			if(planner.pop(plan)) cfg.logCorrupt();
+			return plan.id;
 		case (char)wdedup::WMergeLog::merge:
 			// Parse the segment parameters.
-			size_t left, right, out;
-			cfg.ilog() >> left >> right >> out;
+			size_t left, right, out, size;
+			cfg.ilog() >> left >> right >> out >> size;
 
 			// If the logged item does not match the 
 			// working items, report errors.
-			if(plans[cursor].left != left) cfg.logCorrupt();
-			if(plans[cursor].right != right) cfg.logCorrupt();
-			if(plans[cursor].out != out) cfg.logCorrupt();
-			++ cursor;
+			if(!planner.pop(plan)) cfg.logCorrupt();
+			if(plan.left != left) cfg.logCorrupt();
+			if(plan.right != right) cfg.logCorrupt();
+			if(plan.id != out) cfg.logCorrupt();
 
 			// Garbage collect merged nodes.
 			if(!disableGC) {
 				cfg.remove(std::to_string(left));
 				cfg.remove(std::to_string(right));
 			}
-			break;
+
+			// Place back the merged node.
+			wdedup::MergeSegment merged;
+			merged.plan = plan;
+			merged.size = size;
+			planner.push(merged);
+
+			break; // switch.
 		default:
 			// Report corruption for unknown log item type.
 			cfg.logCorrupt();
@@ -171,15 +104,13 @@ size_t wmerge(
 	cfg.recoveryDone();
 
 	// Perform iterative merging on the generated profiles.
-	for(; cursor < plans.size(); ++ cursor) {
-		// Open the profiles for writing.
-		const wdedup::WMergePlan& current = plans[cursor];
+	while(planner.pop(plan)) {
 		std::unique_ptr<wdedup::ProfileInput> left =
-			cfg.openInput(std::to_string(current.left));
+			cfg.openInput(std::to_string(plan.left));
 		std::unique_ptr<wdedup::ProfileInput> right =
-			cfg.openInput(std::to_string(current.right));
+			cfg.openInput(std::to_string(plan.right));
 		std::unique_ptr<wdedup::ProfileOutput> out =
-			cfg.openOutput(std::to_string(current.out));
+			cfg.openOutput(std::to_string(plan.id));
 
 		// Remove the lesser one to the output node.
 		while((!left->empty()) && (!right->empty())) {
@@ -199,22 +130,29 @@ size_t wmerge(
 		// Finish up the left one by pushing.
 		while(!left->empty()) out->push(std::move(left->pop()));
 		while(!right->empty()) out->push(std::move(right->pop()));
-		out->close();
+		size_t size = out->close();
 
 		// Write out the persistent finished log.
-		cfg.olog() << wdedup::WMergeLog::merge << 
-			current.left << current.right << current.out << wdedup::sync;
+		cfg.olog() << wdedup::WMergeLog::merge 
+			<< plan.left << plan.right << plan.id 
+			<< size << wdedup::sync;
 		
 		// Perform garbage collection.
 		if(!disableGC) {
-			cfg.remove(std::to_string(current.left));
-			cfg.remove(std::to_string(current.right));
+			cfg.remove(std::to_string(plan.left));
+			cfg.remove(std::to_string(plan.right));
 		}
+
+		// Place back the merged node.
+		wdedup::MergeSegment merged;
+		merged.plan = plan;
+		merged.size = size;
+		planner.push(merged);
 	}
 
 	// Return the single node of current layer.
 	cfg.olog() << wdedup::WMergeLog::end << wdedup::sync;
-	return plans[plans.size() - 1].out;
+	return plan.id;
 }
 
 } // namespace wdedup

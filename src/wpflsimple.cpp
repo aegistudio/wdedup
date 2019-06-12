@@ -74,8 +74,9 @@ void ProfileOutputSimple::push(ProfileItem pi) throw (wdedup::Error) {
 	else output << (char)0 << pi.occur;
 }
 
-void ProfileOutputSimple::close() throw (wdedup::Error) {
+size_t ProfileOutputSimple::close() throw (wdedup::Error) {
 	output << wdedup::sync;
+	return output.tell();
 }
 
 } // namespace wdedup

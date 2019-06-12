@@ -65,11 +65,11 @@ bool SortDedup::insert(const char* word, size_t len, fileoff_t offset) noexcept 
 	return true;
 }
 
-void SortDedup::pour(
+size_t SortDedup::pour(
 	SortDedup dedup, std::unique_ptr<wdedup::ProfileOutput> output
 ) throw (wdedup::Error) {
 	assert(output != nullptr);
-	if(dedup.wmman.size() == 0) return;
+	if(dedup.wmman.size() == 0) return output->close();
 
 	// Public code for writing out item based on duplication.
 	auto writeitem = [&] (const SortDedupItem& item, size_t first, size_t last) {
@@ -96,7 +96,7 @@ void SortDedup::pour(
 		}
 	}
 	writeitem(items[j], j, dedup.wmman.size() - 1);
-	output->close();
+	return output->close();
 }
 
 } // namespace wdedup

@@ -100,7 +100,9 @@ struct ProfileOutput {
 	virtual void push(ProfileItem) throw (wdedup::Error) = 0;
 
 	/// Indicates that this is the end of profile output.
-	virtual void close() throw (wdedup::Error) = 0;
+	/// The size of the generated file will be collected and
+	/// return to the caller.
+	virtual size_t close() throw (wdedup::Error) = 0;
 };
 
 } // namespace wdedup

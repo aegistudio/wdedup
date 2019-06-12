@@ -99,7 +99,7 @@ struct TreeDedup final {
 	/// or fail while pouring.
 	/// Both pool and profile output will be automatically destroyed 
 	/// once after the operation is done.
-	static void pour(TreeDedup, std::unique_ptr<wdedup::ProfileOutput>) 
+	static size_t pour(TreeDedup, std::unique_ptr<wdedup::ProfileOutput>) 
 			throw (wdedup::Error);
 private:
 	/// The working memory manager used to allocate objects.
