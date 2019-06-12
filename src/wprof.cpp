@@ -166,10 +166,12 @@ enum class WProfLog : char {
 	end = 'e'
 };
 
-size_t wprof(wdedup::Config& cfg, const std::string& path, 
+std::vector<wdedup::ProfileSegment>
+wprof(wdedup::Config& cfg, const std::string& path, 
 	size_t syncDistance) throw (wdedup::Error) {
 
 	// The control counters for wprof routine.
+	std::vector<wdedup::ProfileSegment> result;
 	size_t segments = 0;
 	fileoff_t offset = 0;
 
@@ -181,7 +183,7 @@ size_t wprof(wdedup::Config& cfg, const std::string& path,
 		case (char)wdedup::WProfLog::end:
 			// Indicates this is the end of current log
 			// and wprof stage has been completed.
-			return segments;
+			return std::move(result);
 		case (char)wdedup::WProfLog::segment:
 			// Parse the segment parameters.
 			fileoff_t start, end;
@@ -191,6 +193,16 @@ size_t wprof(wdedup::Config& cfg, const std::string& path,
 			// end of previous segment, report corruption.
 			if(start != offset) cfg.logCorrupt();
 			offset = end + 1;
+
+			// Place the segments out.
+			wdedup::ProfileSegment segment;
+			segment.id = segments;
+			segment.start = start;
+			segment.end = end;
+			segment.size = 0; // TODO(haoran.luo): parse size.
+			result.push_back(segment);
+
+			// Advance to next segment.
 			++ segments;
 			break;
 		default:
@@ -267,15 +279,26 @@ size_t wprof(wdedup::Config& cfg, const std::string& path,
 		cfg.remove(segmentName);
 		wdedup::Dedup::pour(std::move(dedup), 
 			cfg.openOutput(segmentName));
+		size_t start = offset, end = prevoff - 1;
 		cfg.olog() << wdedup::WProfLog::segment << 
-			offset << (prevoff - 1) << wdedup::sync;
+			start << end << wdedup::sync;
+
+		// Place the segments out.
+		wdedup::ProfileSegment segment;
+		segment.id = segments;
+		segment.start = start;
+		segment.end = end;
+		segment.size = 0; // TODO(haoran.luo): fetch size.
+		result.push_back(segment);
+
+		// Advance to next segment.
 		offset = prevoff;
 		++ segments;
 	}
 
 	// Write out to the log that the wprof stage has finished.
 	cfg.olog() << wdedup::WProfLog::end << wdedup::sync;
-	return segments;
+	return std::move(result);
 }
 
 } // namespace wdedup
